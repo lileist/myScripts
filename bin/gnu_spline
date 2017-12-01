@@ -1,0 +1,5 @@
+set samples 100
+set table "nebspline.dat"
+plot "neb.dat" using 2:3 smooth cspline
+unset table
+plot "neb.dat" using 2:3 pt 14 t "original data", "nebspline.dat" using 1:2 w l t "Splines"

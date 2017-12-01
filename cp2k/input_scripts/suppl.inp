@@ -1,0 +1,181 @@
+ &GLOBAL
+   PRINT_LEVEL  Low
+   PROJECT_NAME  au16
+   RUN_TYPE   MD
+ &END GLOBAL
+
+ &FORCE_EVAL
+   METHOD        QS
+   STRESS_TENSOR NONE
+   &DFT
+     BASIS_SET_FILE_NAME  /global/homes/l/leili/cp2k_data/BASIS_MOLOPT
+     POTENTIAL_FILE_NAME  /global/homes/l/leili/cp2k_data/GTH_POTENTIALS
+     &SCF
+      SCF_GUESS restart
+      EPS_SCF 5.0E-6
+      EPS_DIIS 1.0E-1
+      MAX_SCF 100
+      CHOLESKY INVERSE
+      &OT                       T 
+        ALGORITHM               STRICT
+        IRAC_DEGREE             4
+        MAX_IRAC                50
+        ORTHO_IRAC              CHOL
+        EPS_IRAC                1.0000E-10
+        EPS_IRAC_QUICK_EXIT     1.0000E-05
+        EPS_IRAC_SWITCH         1.0000E-02
+        ON_THE_FLY_LOC          F
+        MINIMIZER               DIIS
+        SAFE_DIIS               T
+        N_DIIS                  5
+        LINESEARCH              2PNT
+        STEPSIZE                1.5000E-01
+        GOLD_TARGET             1.0000E-02
+        PRECONDITIONER          FULL_SINGLE_INVERSE
+        PRECOND_SOLVER          DEFAULT
+        ENERGY_GAP              1.0000E-01
+        EPS_TAYLOR              1.0000E-16
+        MAX_TAYLOR              4
+        ROTATION                F
+        ENERGIES                F
+      &END OT
+      &OUTER_SCF                T
+        TYPE                    NONE
+        OPTIMIZER               NONE
+        BISECT_TRUST_COUNT      10
+        EPS_SCF                 2.000E-07
+        DIIS_BUFFER_LENGTH      3
+        EXTRAPOLATION_ORDER     3
+        MAX_SCF                 15
+        STEP_SIZE               5.000E-01
+      &END OUTER_SCF
+     &END SCF
+      &QS
+       EPS_DEFAULT          1.000E-10
+       EXTRAPOLATION        ASPC
+       EXTRAPOLATION_ORDER  3
+       METHOD               GPW
+       MAP_CONSISTENT 
+     &END QS
+     &MGRID
+       NGRIDS               5
+       CUTOFF               5.000E+02
+       REL_CUTOFF           4.000E+01
+     &END MGRID
+     &XC
+       DENSITY_CUTOFF               1.0000E-10
+       GRADIENT_CUTOFF              1.0000E-10
+       DENSITY_SMOOTH_CUTOFF_RANGE  0.0000E+00
+       TAU_CUTOFF                   1.0000E-10
+       FUNCTIONAL_ROUTINE           NEW
+       &XC_GRID
+         XC_SMOOTH_RHO              NONE
+         XC_DERIV                   PW
+#Normally SPLINE2 is a good choice, but for high cutoff (600 Ry for water) SPLIN3 is better
+#         XC_DERIV                  SPLINE2
+#         XC_DERIV                  SPLINE3
+         USE_FINER_GRID             F
+       &END XC_GRID
+       &XC_FUNCTIONAL               NO_SHORTCUT
+         &PBE
+           PARAMETRIZATION         ORIG
+           SCALE_C                 1.00000000E+00
+           SCALE_X                 1.00000000E+00
+         &END PBE
+       &END XC_FUNCTIONAL
+       &XC_POTENTIAL
+         ENERGY                     NONE
+       &END XC_POTENTIAL
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
+        &PAIR_POTENTIAL
+          TYPE DFTD3
+          REFERENCE_FUNCTIONAL PBE
+          CALCULATE_C9_TERM .TRUE.
+          PARAMETER_FILE_NAME  /global/homes/l/leili/cp2k_data/dftd3.dat
+          R_CUTOFF 15.0
+        &END PAIR_POTENTIAL
+      &END vdW_POTENTIAL
+     &END XC
+     &POISSON
+       POISSON_SOLVER  periodic
+       PERIODIC        xyz
+     &END POISSON
+#     &PRINT
+#       &MO_CUBES  SILENT
+#         WRITE_CUBE  T
+#         NLUMO               5
+#         NHOMO               5
+#       &END MO_CUBES
+#       &V_HARTREE_CUBE  SILENT
+#         FILENAME ./v1
+#       &END V_HARTREE_CUBE
+#       &E_DENSITY_CUBE
+#         FILENAME ./density
+#       &END E_DENSITY_CUBE
+#     &END PRINT
+#     MULTIPLICITY 1
+#     &PRINT
+#       &MO_CUBES
+#         NHOMO      10
+#         NLUMO      10
+#         STRIDE    1 1 1 
+#         FILENAME   molecuOrbit
+#         WRITE_CUBE T
+#       &END MO_CUBES
+#     &END PRINT 
+   &END DFT
+######################################################################
+#                                                                    #
+######################################################################
+   &SUBSYS
+     &CELL
+      ABC  20.00 20.00 20.00
+      ALPHA_BETA_GAMMA 90.0 90.0 90.0
+      PERIODIC  XYZ
+      MULTIPLE_UNIT_CELL  1  1  1
+     &END CELL
+     &TOPOLOGY
+       MULTIPLE_UNIT_CELL   1  1  1
+       COORD_FILE_FORMAT XYZ
+       COORD_FILE_NAME   ./geometry.xyz
+     &END TOPOLOGY
+  
+     &KIND O
+      BASIS_SET TZV2P-MOLOPT-GTH-q6
+      POTENTIAL GTH-PBE-q6
+     &END KIND
+
+     &KIND Au
+      BASIS_SET DZVP-MOLOPT-SR-GTH-q11
+      POTENTIAL GTH-PBE-q11
+     &END KIND
+
+   &END SUBSYS
+ &END FORCE_EVAL
+
+
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10000
+    TIMESTEP 1.0
+    TEMPERATURE 300.0
+  &END MD
+  &PRINT
+    &RESTART
+       &EACH
+         MD     1
+       &END
+    &END
+  &END
+&END MOTION
+
+#&EXT_RESTART
+#  RESTART_FILE_NAME  NO-NH2-1.restart
+#  RESTART_COUNTERS F
+#  RESTART_POS T
+#  RESTART_VEL  T
+#  RESTART_THERMOSTAT T
+#&END EXT_RESTART
+

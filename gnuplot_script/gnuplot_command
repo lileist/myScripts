@@ -1,0 +1,14 @@
+gnuplot> set ytics font ",16"
+gnuplot> set xtics font ",16"
+gnuplot> set xrange [-200:40000]
+gnuplot> set yrange [-188:-186.4]
+gnuplot> plot "300K" using 2:9 w l lw 2
+gnuplot> set xtics font ",20"
+gnuplot> plot "300K" using 2:9 w l lw 2
+gnuplot> set ytics font ",20"
+gnuplot> set xrange [-500:40000]
+gnuplot> set size square 0.8,0.8
+gnuplot> plot "300K" using 2:9 w l lw 2
+gnuplot> set size square 0.9,0.9
+gnuplot> plot "300K" using 2:9 w l lw 2
+gnuplot> plot "300K" using ($2/1000):9 w l lw 2

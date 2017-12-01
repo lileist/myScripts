@@ -1,0 +1,13 @@
+#!/bin/bash
+#$ -V
+#$ -S /bin/bash
+#$ -cwd
+#$ -j y
+#$ -o $JOB_NAME.$JOB_ID
+#$ -N "cp2k-test"
+#$ -pe mpi48 48
+##$ -pe mpi24 24 #for halifax
+
+ /usr/local/openmpi_gnu/bin/mpirun -np $NSLOTS /usr/local/cp2k_3.0/cp2k/exe/Linux-x86-64-gfortran/cp2k.popt -i suppl.inp >suppl.out
+
+

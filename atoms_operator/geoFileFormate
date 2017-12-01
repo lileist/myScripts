@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+
+import sys
+import os
+import ase
+from ase import Atoms
+from ase.io import read, write
+from ase.io.vasp import write_vasp
+from ase.utils.geometry import sort
+"""
+geoFileformate inputfile input_format outputefile output_format
+"""
+def main():
+    arg = sys.argv
+    inputfile = arg[1]
+    fmt1 = arg[2]
+    outputfile = arg[3]
+    fmt2 = arg[4]
+    if len(arg) > 5:
+       cellsize = float(arg[5])
+    else:
+       cellsize = 80.0
+    p1 = read(filename=inputfile, index=0, format = fmt1)
+    if fmt1 == "xyz":
+    #   p1.center()
+       p1.set_cell([[cellsize,0,0],[0,cellsize,0],[0,0,cellsize]],scale_atoms=False,fix=None)
+#    p1.set_positions(ase.geometry.wrap_positions(p1.get_positions(),p1.get_cell(),pbc=True,center=(0.5,0.5,0.5)))
+#    p1.set_pbc((True, True, True))
+    #p1.center(about=(6.365,2.651,8.616))
+    #p1=sort(p1)
+    #p1.center()
+    #p1.wrap()
+#    p1.set_positions(p1.get_positions()+20.)
+    if fmt2 == "vasp":
+       #p1.center()
+       write_vasp(filename = outputfile, atoms = p1, direct=False, vasp5=True)
+    else:
+       write(filename=outputfile, images=p1, format = fmt2)
+if __name__ == '__main__':
+    main()
+    

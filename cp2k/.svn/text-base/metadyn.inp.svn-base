@@ -1,0 +1,282 @@
+ &GLOBAL
+   PRINT_LEVEL  Low
+   PROJECT_NAME  NO-NH2
+   RUN_TYPE   MD
+ &END GLOBAL
+
+ &FORCE_EVAL
+   METHOD        QS
+   STRESS_TENSOR  NONE
+   &DFT
+     BASIS_SET_FILE_NAME /opt/programs/cp2k-3.0/data/HFX_BASIS
+     POTENTIAL_FILE_NAME /opt/programs/cp2k-3.0/data/GTH_POTENTIALS
+     UKS T
+     &SCF
+       MAX_ITER_LUMO     299
+       MAX_SCF           200
+       MAX_SCF_HISTORY   0
+       MAX_DIIS          4
+       EPS_SCF           5.000E-06
+       EPS_SCF_HISTORY   0.000E+00
+       EPS_DIIS          1.000E-01
+       SCF_GUESS         atomic
+       &OT                       T
+         ALGORITHM               STRICT
+         IRAC_DEGREE             4
+         MAX_IRAC                50
+         ORTHO_IRAC              CHOL
+         EPS_IRAC                1.0000E-10
+         EPS_IRAC_QUICK_EXIT     1.0000E-05
+         EPS_IRAC_SWITCH         1.0000E-02
+         ON_THE_FLY_LOC          F
+         MINIMIZER               DIIS
+         SAFE_DIIS               T
+         N_DIIS                  5
+         LINESEARCH              2PNT
+         STEPSIZE                1.5000E-01
+         GOLD_TARGET             1.0000E-02
+         PRECONDITIONER          FULL_SINGLE_INVERSE
+         PRECOND_SOLVER          DEFAULT
+         ENERGY_GAP              2.0000E-01
+         EPS_TAYLOR              1.0000E-16
+         MAX_TAYLOR              4
+         ROTATION                F
+         ENERGIES                F
+       &END OT
+       &OUTER_SCF                T
+         TYPE                    NONE
+         OPTIMIZER               NONE
+         BISECT_TRUST_COUNT      10
+         EPS_SCF                 5.000E-06
+         DIIS_BUFFER_LENGTH      3
+         EXTRAPOLATION_ORDER     3
+         MAX_SCF                 5
+         STEP_SIZE               5.000E-01
+       &END OUTER_SCF
+       &PRINT
+         &RESTART
+           LOG_PRINT_KEY
+         &END
+       &END
+     &END SCF
+     &QS
+       EPS_DEFAULT          1.000E-10
+       EXTRAPOLATION        ASPC
+       EXTRAPOLATION_ORDER  3
+       METHOD               GPW
+     &END QS
+     &MGRID
+       NGRIDS               5
+       CUTOFF               2.800E+02
+       REL_CUTOFF           3.000E+01
+     &END MGRID
+     &XC
+       DENSITY_CUTOFF               1.0000E-10
+       GRADIENT_CUTOFF              1.0000E-10
+       DENSITY_SMOOTH_CUTOFF_RANGE  0.0000E+00
+       TAU_CUTOFF                   1.0000E-10
+       FUNCTIONAL_ROUTINE           NEW
+       &XC_GRID
+         XC_SMOOTH_RHO              NONE
+         XC_DERIV                   PW
+         USE_FINER_GRID             F
+       &END XC_GRID
+       &XC_FUNCTIONAL PBE
+        &PBE
+          SCALE_X 0.75
+          SCALE_C 1.0
+        &END PBE
+       &END XC_FUNCTIONAL
+       &HF
+         &SCREENING
+           EPS_SCHWARZ 1.0E-10 
+         &END
+         &MEMORY
+           MAX_MEMORY  5 
+         &END
+         FRACTION 0.25
+         &INTERACTION_POTENTIAL
+           POTENTIAL_TYPE TRUNCATED
+           CUTOFF_RADIUS 6.0
+           T_C_G_DATA /opt/programs/cp2k-3.0/data/t_c_g.dat
+         &END INTERACTION_POTENTIAL
+       &END HF
+       &XC_POTENTIAL
+         ENERGY                     NONE
+       &END XC_POTENTIAL
+      &vdW_POTENTIAL
+         DISPERSION_FUNCTIONAL PAIR_POTENTIAL
+        &PAIR_POTENTIAL
+          TYPE DFTD3
+          REFERENCE_FUNCTIONAL PBE
+          CALCULATE_C9_TERM .TRUE.
+          PARAMETER_FILE_NAME /opt/programs/cp2k-3.0/data/dftd3.dat
+          R_CUTOFF 15.0
+        &END PAIR_POTENTIAL
+      &END vdW_POTENTIAL
+     &END XC
+     &POISSON
+       POISSON_SOLVER  periodic
+       PERIODIC        xyz
+     &END POISSON
+   &END DFT
+######################################################################
+#                                                                    #
+######################################################################
+   &SUBSYS
+     &CELL
+      ABC  20.00 20.00 20.00
+      ALPHA_BETA_GAMMA 90.0 90.0 90.0
+      PERIODIC  XYZ
+      MULTIPLE_UNIT_CELL  1  1  1
+     &END CELL
+     &TOPOLOGY
+       MULTIPLE_UNIT_CELL   1  1  1
+       COORD_FILE_FORMAT XYZ
+       COORD_FILE_NAME   ./geometry.xyz
+     &END TOPOLOGY
+  
+     &KIND O 
+       BASIS_SET TZV2P-GTH
+       POTENTIAL GTH-PBE-q6
+     &END KIND
+
+      &KIND H
+       BASIS_SET TZV2P-GTH
+       POTENTIAL GTH-PBE-q1
+     &END KIND
+
+     &KIND N
+       BASIS_SET TZV2P-GTH
+       POTENTIAL GTH-PBE-q5
+     &END KIND
+
+# ON-OH2 distance    
+     &COLVAR
+       &DISTANCE 
+         ATOMS  7 16
+         AXIS XYZ
+       &END DISTANCE
+     &END COLVAR
+
+# NH2-OH2 distance
+     &COLVAR
+       &DISTANCE 
+         ATOMS  12 13
+         AXIS XYZ
+       &END DISTANCE
+     &END COLVAR
+
+# H2N-NO distance
+     &COLVAR
+       &DISTANCE 
+         ATOMS  13 16
+         AXIS XYZ
+       &END DISTANCE
+     &END COLVAR
+
+   &END SUBSYS
+ &END FORCE_EVAL
+
+
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 50000
+    TIMESTEP 0.5
+    TEMPERATURE 250.0
+#    TEMP_TOL  100
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        YOSHIDA 3
+        TIMECON 50.0
+        MTS 2
+      &END NOSE
+    &END
+  &END MD
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS 
+      LAGRANGE
+      NT_HILLS 30
+      WW 8.0e-4
+      &METAVAR
+        LAMBDA 0.8
+        MASS 50.0
+        SCALE [angstrom] 0.2
+        COLVAR 1
+        &WALL
+          POSITION [angstrom] 4.0
+          TYPE QUARTIC
+          &QUARTIC
+             DIRECTION WALL_PLUS
+             K [kcalmol] 100.0
+          &END QUARTIC
+        &END WALL
+      &END METAVAR
+      &METAVAR
+        LAMBDA 0.8
+        MASS 50.0
+        SCALE [angstrom] 0.1
+        COLVAR 2
+        &WALL
+          POSITION [angstrom] 3.0
+          TYPE QUARTIC
+          &QUARTIC
+             DIRECTION WALL_PLUS
+             K [kcalmol] 100.0
+          &END QUARTIC
+        &END WALL
+      &END METAVAR
+      &METAVAR
+        LAMBDA 0.8
+        MASS 50.0
+        SCALE [angstrom] 0.2
+        COLVAR 3
+        &WALL
+          POSITION [angstrom] 2.0
+          TYPE QUARTIC
+          &QUARTIC
+             DIRECTION WALL_MINUS
+             K [kcalmol] 100.0
+          &END QUARTIC
+        &END WALL
+      &END METAVAR
+      &PRINT
+        &COLVAR
+           COMMON_ITERATION_LEVELS 50000
+           &EACH
+             MD 1
+           &END
+        &END
+        &HILLS
+           COMMON_ITERATION_LEVELS 50000
+           FILENAME HILLS
+           &EACH
+             MD 1
+           &END
+        &END
+        &PROGRAM_RUN_INFO  MEDIUM
+           COMMON_ITERATION_LEVELS 50000
+        &END
+      &END
+    &END METADYN
+  &END
+  &PRINT
+    &RESTART
+       &EACH
+         MD     1
+       &END
+    &END
+  &END
+&END MOTION
+
+&EXT_RESTART
+  RESTART_FILE_NAME  NO-NH2-1.restart
+#  RESTART_COUNTERS F
+  RESTART_POS T
+  RESTART_VEL  T
+  RESTART_THERMOSTAT T
+&END EXT_RESTART
+

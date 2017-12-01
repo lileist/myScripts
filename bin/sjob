@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+import sys
+import os
+
+def main():
+    arg = sys.argv
+    jobid = arg[1]
+    print (arg[0])
+
+    if jobid is None:
+        print "jobid is empty"
+
+    if len(arg) > 2:
+       target = arg[len(arg)-1]
+       cmd = 'qstat -j '+str(jobid) +'| grep '+ target
+    else:
+       cmd = 'qstat -j '+str(jobid)
+    os.system(cmd)
+
+if __name__ == '__main__':
+    main()

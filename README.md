@@ -11,4 +11,4 @@ expectra
 gnuplot_script
 jobscripts
 method_scripts: strain calculations
-neb_scripts
+neb_scripts: process data for NEB calculation

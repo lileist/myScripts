@@ -160,20 +160,25 @@ def main():
     k=0
     nelect_list = []
     du_list = []
+
+    #used to restart calculation with history log file
     if u_history == 1:
        nelect_list, du_list, nelect_new = read_old_u_log('u_log.dat', u_target) 
+
     log_u = open('u_log.dat','w')
-    log_u.write("{:5s}{:22s}{:22s}{:22s}{:22s}{:22s}\n".format("step", "nelect_new", "u_new", "du_new", "k", "energy"))
+    log_u.write("{:5s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:22s}\n".format("step", "nelect_new", "vacc_level","fermi","u_new", "du_new", "k", "energy"))
+
     for n_step in range(max_step):
-        output = open('INCAR', 'w')
-        #prepare INCAR
+
         if n_step == 1:
-           # fermi level to high. incease e, fermi shift to lower level
+           # fermi level too high. incease e, fermi shift to lower level
            if du_new < 0: 
               nelect_new = nelect_new - step_size
            else:
               nelect_new = nelect_new + step_size
 
+        #prepare INCAR
+        output = open('INCAR', 'w')
         for line in lines:
             if 'NELECT' in line and nelect_new is not None: 
                output.write("%s %15.6f\n"%('NELECT = ', nelect_new))
@@ -191,6 +196,9 @@ def main():
                if 'IBRION'  in line:
                   output.write("%s %d\n"%('IBRION = ', -1))
                   continue
+               if 'NELMIN'  in line:
+                  output.write("%s %d\n"%('NELMIN = ', 2))
+                  continue
             output.write("%s"%(line))
         if vaspsol == 1 and n_step > 0:
            output.write("%s\n"%(' LSOL = .TRUE.'))
@@ -199,6 +207,7 @@ def main():
            output.write("%s\n"%(' LAMBDA_D_K = 3.0'))
            output.write("%s\n"%(' NC_K    =  0.0047300'))
         output.close()
+
         #run vasp
         print "##### vasp running"
         os.system(paras['run_vasp'])
@@ -211,12 +220,15 @@ def main():
         if "EDIFF is reached" not in vasp_done[0]:
            print "job with nelect=", nelect_new, "is not converged"
            sys.exit()
+
+        #read nelect from OUTCAR
         if nelect_new is None:
            proc_1 = subprocess.Popen("grep NELECT OUTCAR", shell=True, stdout=subprocess.PIPE)
            out = proc_1.communicate()
            nelect_new = float(out[0].split()[2])
            os.system("cp CONTCAR POSCAR")
            print "POSCAR updated"
+
         #calculate voltage
         doscar = open('DOSCAR', 'r')
         for i in range(6):
@@ -228,16 +240,18 @@ def main():
         u_new = vaccum_level - fermi - pot_she
         #when u < u_target, take abs. since need du --> 0. if no abs, du --> negative infinite
         du_new = u_new - u_target
+        
+        if n_step > 0:
+           nelect_list.append(nelect_new)
+           du_list.append(du_new)
 
-        nelect_list.append(nelect_new)
-        du_list.append(du_new)
-
-        log_u.write("%d %15.6f %15.6f %15.6f %15.6f %s\n"%(n_step, nelect_new, u_new, du_new, k, energy))
+        log_u.write("%d %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %s\n"%(n_step, nelect_new, vaccum_level, fermi, u_new, du_new, k, energy))
         log_u.flush()
 
         du_new = abs(du_new)
         if du_new < convergence:
            break
+
         if n_step ==0:
            du_min = du_new
            nelect_min = nelect_new
@@ -253,7 +267,7 @@ def main():
         k = (du_new - du_old)/(nelect_new - nelect_old)
         #nelect_new shows a linear relationship with nelect_new. guess 'nelect_new' by constructing a straight line
         if linearFitting:
-           if n_step % linearFitting == 0:
+           if n_step % linearFitting == 0 and len(nelect_list)>1:
               fit_paras = numpy.polyfit(nelect_list, du_list, 1)
               k = fit_paras[0]
               b = fit_paras[1]

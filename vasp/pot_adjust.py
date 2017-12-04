@@ -157,6 +157,7 @@ def main():
     u_target = float(paras['applied_voltage'])
     convergence = float(paras['convergence'])
     u_history = int(paras['u_history'])
+    du_limit = float(paras['du_limit'])
     k=0
     nelect_list = []
     du_list = []
@@ -185,10 +186,10 @@ def main():
                continue
             if n_step > 0:
                if 'ISTART'  in line:
-                  output.write("%s %d\n"%('ISTART = ', 1))
+                  output.write("%s %d\n"%('ISTART = ', 0))
                   continue
                if 'ICHARG'  in line:
-                  output.write("%s %d\n"%('ICHARG = ', 1))
+                  output.write("%s %d\n"%('ICHARG = ', 2))
                   continue
                if 'NSW'  in line:
                   output.write("%s %d\n"%('NSW = ', 0))
@@ -251,7 +252,10 @@ def main():
         du_new = abs(du_new)
         if du_new < convergence:
            break
-
+        #use small step size if close to target
+        if du_new < du_limit and n_step > 0:
+           step_size = float(paras['small_step_size'])
+           print 'step size', step_size
         if n_step ==0:
            du_min = du_new
            nelect_min = nelect_new
@@ -267,15 +271,15 @@ def main():
         k = (du_new - du_old)/(nelect_new - nelect_old)
         #nelect_new shows a linear relationship with nelect_new. guess 'nelect_new' by constructing a straight line
         if linearFitting:
-           if n_step % linearFitting == 0 and len(nelect_list)>1:
-              fit_paras = numpy.polyfit(nelect_list, du_list, 1)
+           if n_step % linearFitting == 0 and len(nelect_list)>2:
+              fit_paras = numpy.polyfit(nelect_list[-3:], du_list[-3:], 1)
               k = fit_paras[0]
               b = fit_paras[1]
               du_old = du_new
               nelect_old = nelect_new
               nelect_new = - b / k
               continue
-
+        #guess target nelect based on most recent two dots
         if guess:
            if n_step == guess:
               b = du_new - k * nelect_new

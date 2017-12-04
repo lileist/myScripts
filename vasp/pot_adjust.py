@@ -166,6 +166,22 @@ def main():
     if u_history == 1:
        nelect_list, du_list, nelect_new = read_old_u_log('u_log.dat', u_target) 
 
+    #structure optimization with given parameters in INCAR
+    if 'geo_opt' in paras:
+       print "##### vasp running"
+       os.system(paras['run_vasp'])
+       proc = subprocess.Popen("grep 'aborting loop because EDIFF is reached' OUTCAR|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+       vasp_done = proc.communicate()
+       print "vasp run infor",vasp_done[0]
+       proc_2 = subprocess.Popen("grep 'energy  without entropy' OUTCAR |tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+       vasp_output = proc_2.communicate()
+       energy = vasp_output[0].split()[6]
+       if "EDIFF is reached" not in vasp_done[0]:
+          print "job with nelect=", nelect_new, "is not converged"
+          sys.exit()
+       else:
+          os.system("cp CONTCAR POSCAR")
+
     log_u = open('u_log.dat','w')
     log_u.write("{:5s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:22s}\n".format("step", "nelect_new", "vacc_level","fermi","u_new", "du_new", "k", "energy"))
 
@@ -184,24 +200,23 @@ def main():
             if 'NELECT' in line and nelect_new is not None: 
                output.write("%s %15.6f\n"%('NELECT = ', nelect_new))
                continue
-            if n_step > 0:
-               if 'ISTART'  in line:
-                  output.write("%s %d\n"%('ISTART = ', 0))
-                  continue
-               if 'ICHARG'  in line:
-                  output.write("%s %d\n"%('ICHARG = ', 2))
-                  continue
-               if 'NSW'  in line:
-                  output.write("%s %d\n"%('NSW = ', 0))
-                  continue
-               if 'IBRION'  in line:
-                  output.write("%s %d\n"%('IBRION = ', -1))
-                  continue
-               if 'NELMIN'  in line:
-                  output.write("%s %d\n"%('NELMIN = ', 2))
-                  continue
+            if 'ISTART'  in line:
+               output.write("%s %d\n"%('ISTART = ', 1))
+               continue
+            if 'ICHARG'  in line:
+               output.write("%s %d\n"%('ICHARG = ', 1))
+               continue
+            if 'NSW'  in line:
+               output.write("%s %d\n"%('NSW = ', 0))
+               continue
+            if 'IBRION'  in line:
+               output.write("%s %d\n"%('IBRION = ', -1))
+               continue
+            if 'NELMIN'  in line:
+               output.write("%s %d\n"%('NELMIN = ', 2))
+               continue
             output.write("%s"%(line))
-        if vaspsol == 1 and n_step > 0:
+        if vaspsol == 1:
            output.write("%s\n"%(' LSOL = .TRUE.'))
            output.write("%s\n"%(' EB_K = 78.4'))
            output.write("%s\n"%(' TAU = 0.00'))
@@ -242,9 +257,8 @@ def main():
         #when u < u_target, take abs. since need du --> 0. if no abs, du --> negative infinite
         du_new = u_new - u_target
         
-        if n_step > 0:
-           nelect_list.append(nelect_new)
-           du_list.append(du_new)
+        nelect_list.append(nelect_new)
+        du_list.append(du_new)
 
         log_u.write("%d %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %s\n"%(n_step, nelect_new, vaccum_level, fermi, u_new, du_new, k, energy))
         log_u.flush()

@@ -95,7 +95,9 @@ def vaccum_pot(idir, start_index, end_index):
   for i in xrange(1, len(vav)):
       output.write("%d %15.6f\n"%(i, vav[i]))
   output.close()
-  return numpy.mean(vav[start_index:end_index+1])
+  plyfit_paras = numpy.polyfit(range(start_index, end_index+1), vav[start_index:end_index+1], 1)
+  print 'vaccum_intercept:', plyfit_paras[1]
+  return numpy.mean(vav[start_index:end_index+1]), plyfit_paras[0]
 
 def make_dir(path):
     try:
@@ -168,21 +170,28 @@ def main():
 
     #structure optimization with given parameters in INCAR
     if 'geo_opt' in paras:
-       print "##### vasp running"
-       os.system(paras['run_vasp'])
-       proc = subprocess.Popen("grep 'reached required accuracy' OUTCAR|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-       vasp_done = proc.communicate()
-       print "vasp run infor",vasp_done[0]
-       proc_2 = subprocess.Popen("grep 'energy  without entropy' OUTCAR |tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-       vasp_output = proc_2.communicate()
-       energy = vasp_output[0].split()[6]
-       if "stopping structural energy minimisation" not in vasp_done[0]:
-          print "job with nelect=", nelect_new, "is not converged"
-          sys.exit()
+       rerun = True
+       while rerun:
+          print "##### vasp running"
+          os.system(paras['run_vasp'])
+          proc = subprocess.Popen("grep 'reached required accuracy' OUTCAR|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+          vasp_done = proc.communicate()
+          print "vasp run infor",vasp_done[0]
+          proc_2 = subprocess.Popen("grep 'please rerun with smaller EDIFF' "+ paras['std_out']+ "|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+          vasp_output = proc_2.communicate()
+          if "stopping structural energy minimisation" not in vasp_done[0]:
+             if 'please rerun with smaller EDIFF' in vasp_output[0]:
+                os.system("cp CONTCAR POSCAR")
+                continue
+             else:
+                print "job with nelect=", nelect_new, "is not converged"
+                sys.exit() 
+          else:
+             rerun = False
        os.system("cp CONTCAR POSCAR")
 
     log_u = open('u_log.dat','w')
-    log_u.write("{:5s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:22s}\n".format("step", "nelect_new", "vacc_level","fermi","u_new", "du_new", "k", "energy"))
+    log_u.write("{:5s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:22s}\n".format("step", "nelect_new", "vacc_level","fermi","u_new", "du_new", "k", "vacc_slop","energy"))
 
     for n_step in range(max_step):
 
@@ -250,7 +259,7 @@ def main():
             line = doscar.readline()
         fermi = float(line.split()[3])
         doscar.close()
-        vaccum_level = vaccum_pot(paras['idir'], int(paras['start_index']), int(paras['end_index']))
+        vaccum_level, vaccum_slop = vaccum_pot(paras['idir'], int(paras['start_index']), int(paras['end_index']))
         print "vaccum level:", vaccum_level
         u_new = vaccum_level - fermi - pot_she
         #when u < u_target, take abs. since need du --> 0. if no abs, du --> negative infinite
@@ -259,7 +268,7 @@ def main():
         nelect_list.append(nelect_new)
         du_list.append(du_new)
 
-        log_u.write("%d %15.6f %15.6f %15.6f %15.6f %15.6f %15.6f %s\n"%(n_step, nelect_new, vaccum_level, fermi, u_new, du_new, k, energy))
+        log_u.write("%d %13.4f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %s\n"%(n_step, nelect_new, vaccum_level, fermi, u_new, du_new, k, vaccum_slop, energy))
         log_u.flush()
 
         du_new = abs(du_new)
@@ -301,8 +310,9 @@ def main():
               nelect_new = - b / k
               continue
         du_old = du_new
+        #nelect_new = nelect_min - step_size * numpy.sign(k)
+        nelect_new = nelect_old - step_size * numpy.sign(k)
         nelect_old = nelect_new
-        nelect_new = nelect_min - step_size * k
 if __name__ == '__main__':
     main()
     

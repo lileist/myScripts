@@ -4,7 +4,9 @@ import os
 from ase.io import read, write
 from ase.io.vasp import write_vasp
 
-
+"""
+vaccum_reset [inputfile] [format] [c]
+"""
 def main():
     arg = sys.argv
     inputfile = arg[1]

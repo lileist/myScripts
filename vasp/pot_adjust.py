@@ -152,6 +152,7 @@ def main():
        linearFitting = int(paras['linearFitting'])
     else:
        linearFitting = None
+
     step_size = float(paras['step_size'])
     max_step = int(paras['max_step'])
     vaspsol = int(paras['vaspsol'])
@@ -159,7 +160,7 @@ def main():
     u_target = float(paras['applied_voltage'])
     convergence = float(paras['convergence'])
     u_history = int(paras['u_history'])
-    du_limit = float(paras['du_limit'])
+    du_limit = float(paras['du_limit']) 
     k=0
     nelect_list = []
     du_list = []
@@ -193,15 +194,25 @@ def main():
     log_u = open('u_log.dat','w')
     log_u.write("{:5s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:22s}\n".format("step", "nelect_new", "vacc_level","fermi","u_new", "du_new", "k", "vacc_slop","energy"))
 
+    if 'test_accuracy' in paras:
+        step_size_0 = 0
+    else:
+        step_size_0 = 0.1
+
     for n_step in range(max_step):
 
+        if 'test_accuracy' in paras and n_step == 0:
+           istart = 0
+           icharg = 2
+        else:
+           istart = 1
+           icharg = 1
         if n_step == 1:
            # fermi level too high. incease e, fermi shift to lower level
            if du_new < 0: 
-              nelect_new = nelect_new - step_size
+              nelect_new = nelect_new - step_size_0
            else:
-              nelect_new = nelect_new + step_size
-
+              nelect_new = nelect_new + step_size_0
         #prepare INCAR
         output = open('INCAR', 'w')
         for line in lines:
@@ -209,10 +220,13 @@ def main():
                output.write("%s %15.6f\n"%('NELECT = ', nelect_new))
                continue
             if 'ISTART'  in line:
-               output.write("%s %d\n"%('ISTART = ', 1))
+               output.write("%s %d\n"%('ISTART = ', istart))
                continue
             if 'ICHARG'  in line:
-               output.write("%s %d\n"%('ICHARG = ', 1))
+               output.write("%s %d\n"%('ICHARG = ', icharg))
+               continue
+            if 'EDIFF' in line:
+               output.write("%s %s\n"%('EDIFF = ', '1E-8'))
                continue
             if 'NSW'  in line:
                output.write("%s %d\n"%('NSW = ', 0))
@@ -267,15 +281,15 @@ def main():
         
         nelect_list.append(nelect_new)
         du_list.append(du_new)
-
+        os.system('cp loc_pot.dat '+str(n_step)+'.dat')
         log_u.write("%d %13.4f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %s\n"%(n_step, nelect_new, vaccum_level, fermi, u_new, du_new, k, vaccum_slop, energy))
         log_u.flush()
 
-        du_new = abs(du_new)
-        if du_new < convergence:
+        #du_new = abs(du_new)
+        if abs(du_new) < convergence:
            break
         #use small step size if close to target
-        if du_new < du_limit and n_step > 0:
+        if abs(du_new) < du_limit and n_step > 0:
            step_size = float(paras['small_step_size'])
            print 'step size', step_size
         if n_step ==0:
@@ -290,7 +304,6 @@ def main():
            du_min = du_new
            nelect_min = nelect_new
 
-        k = (du_new - du_old)/(nelect_new - nelect_old)
         #nelect_new shows a linear relationship with nelect_new. guess 'nelect_new' by constructing a straight line
         if linearFitting:
            if n_step % linearFitting == 0 and len(nelect_list)>2:
@@ -301,6 +314,19 @@ def main():
               nelect_old = nelect_new
               nelect_new = - b / k
               continue
+        #step_size too large, leadding ot jump over the stationary point
+        if numpy.sign(du_new) != numpy.sign(du_old):
+           temp_nelect = nelect_new
+           nelect_new = (nelect_old + nelect_new) / 2
+           du_old = du_new
+           nelect_old = temp_nelect
+           continue
+
+        if 'test_accuracy' in paras:
+           k =0
+        else:
+           k = (du_new - du_old)/(nelect_new - nelect_old)
+
         #guess target nelect based on most recent two dots
         if guess:
            if n_step == guess:
@@ -311,8 +337,9 @@ def main():
               continue
         du_old = du_new
         #nelect_new = nelect_min - step_size * numpy.sign(k)
-        nelect_new = nelect_old - step_size * numpy.sign(k)
-        nelect_old = nelect_new
+        temp_nelect = nelect_new
+        nelect_new = nelect_old - step_size * k
+        nelect_old = temp_nelect
 if __name__ == '__main__':
     main()
     

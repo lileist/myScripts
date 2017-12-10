@@ -326,7 +326,7 @@ def main():
         if 'test_accuracy' in paras:
            k =0
         else:
-           k = (du_new - du_old)/(nelect_new - nelect_old)
+           k = (abs(du_new) - abs(du_old))/(nelect_new - nelect_old)
 
         #guess target nelect based on most recent two dots
         if guess:

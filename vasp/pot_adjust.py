@@ -317,7 +317,8 @@ def main():
         #step_size too large, leadding ot jump over the stationary point
         if numpy.sign(du_new) != numpy.sign(du_old):
            temp_nelect = nelect_new
-           nelect_new = (nelect_old + nelect_new) / 2
+           ratio = abs(du_old/du_new)
+           nelect_new = (nelect_old + ratio * nelect_new) / (ratio + 1)
            du_old = du_new
            nelect_old = temp_nelect
            continue
@@ -338,7 +339,7 @@ def main():
         du_old = du_new
         #nelect_new = nelect_min - step_size * numpy.sign(k)
         temp_nelect = nelect_new
-        nelect_new = nelect_old - step_size * k
+        nelect_new = nelect_new - step_size * k
         nelect_old = temp_nelect
 if __name__ == '__main__':
     main()

@@ -16,7 +16,7 @@ from ase import Atoms
 from ase.io import read, write
 from ase.io.vasp import write_vasp
 from ase.utils.geometry import sort
-from ase.constraints import constrained_indices, FixAtoms
+#from ase.constraints import constrained_indices, FixAtoms
 from numpy import linalg as la
 import numpy, math
 import subprocess

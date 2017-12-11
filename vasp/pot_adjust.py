@@ -315,27 +315,20 @@ def main():
               nelect_new = - b / k
               continue
         #step_size too large, leadding ot jump over the stationary point
-        if numpy.sign(du_new) != numpy.sign(du_old):
-           temp_nelect = nelect_new
-           ratio = abs(du_old/du_new)
-           nelect_new = (nelect_old + ratio * nelect_new) / (ratio + 1)
-           du_old = du_new
-           nelect_old = temp_nelect
-           continue
+        if guess:
+           if numpy.sign(du_new) != numpy.sign(du_old):
+              temp_nelect = nelect_new
+              ratio = abs(du_old/du_new)
+              nelect_new = (nelect_old + ratio * nelect_new) / (ratio + 1)
+              du_old = du_new
+              nelect_old = temp_nelect
+              continue
 
         if 'test_accuracy' in paras:
            k =0
         else:
            k = (abs(du_new) - abs(du_old))/(nelect_new - nelect_old)
 
-        #guess target nelect based on most recent two dots
-        if guess:
-           if n_step == guess:
-              b = du_new - k * nelect_new
-              du_old = du_new
-              nelect_old = nelect_new
-              nelect_new = - b / k
-              continue
         du_old = du_new
         #nelect_new = nelect_min - step_size * numpy.sign(k)
         temp_nelect = nelect_new

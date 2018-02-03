@@ -6,7 +6,7 @@ set -e
 #fi
 #mkdir -p runs0
 #cd runs0
-for i in {1348028..1348067}
+for i in {2159606..2159685}
 do
     qdel $i
     #serialsub eonclient

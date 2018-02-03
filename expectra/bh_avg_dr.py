@@ -8,7 +8,7 @@ from ase.io import read, write
 from ase.io.vasp import write_vasp
 from ase.utils.geometry import sort
 """
-count_lbfgs [start_number] [#ofruns] [rawNumberOfElement] [MaxBH_Step]
+bh [start_number] [#ofruns] [rawNumberOfElement] [MaxBH_Step]
 """
 def main():
     directory = os.getcwd()
@@ -59,7 +59,7 @@ def main():
             # else:
             #    print 'back to old state'
           dr += float(line.split()[elem_number])
-          force_calls[i] += float(fields[10])
+          force_calls[i] += float(fields[11])
           dr_list.append(float(line.split()[elem_number]))
           step += 1
           if int(bh_step) == maxbh_step:

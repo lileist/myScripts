@@ -1,0 +1,6 @@
+#find socket number
+cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l
+#find # of cores per socket
+lscpu|grep 'socket'
+https://access.redhat.com/discussions/480953
+

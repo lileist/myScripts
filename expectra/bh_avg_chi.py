@@ -46,8 +46,8 @@ def main():
              print i
              break
           fields = line.split()
-          curr_pot = float(fields[7])
-          u_min = fields[8]
+          curr_pot = float(fields[9])
+          u_min = fields[10]
           bh_step = fields[1]
           if fields[1]=='-1':
              pot = curr_pot
@@ -57,21 +57,21 @@ def main():
              pot = curr_pot
              if pot_var != 0.0:
                 acc_numb += 1
-          dr += float(line.split()[elem_number])
-          force_calls[str(i)] += float(fields[11])
-          dr_list.append(float(line.split()[elem_number]))
+          #dr += float(line.split()[elem_number])
+          force_calls[str(i)] += float(fields[-1])
+          #dr_list.append(float(line.split()[elem_number]))
           step += 1
           if int(bh_step) == maxbh_step:
              break
        fields = bh_lines[len(bh_lines)-1].split()
        pseu_acc_list.append(float(pseu_acc)/float(step))
        acc_list.append(float(acc_numb)/float(step))
-       total_dr += dr
+       #total_dr += dr
        total_step += step
        output.write("%10d  %8.6f %8.6f %s %8.6f %s\n"%(i, float(pseu_acc)/float(step), float(acc_numb)/float(step), bh_step, force_calls[str(i)], u_min))
-       avg_dr.append(dr/float(step))
+       #avg_dr.append(dr/float(step))
     output.write("%s  %8.6f %8.6f\n"%("average", numpy.mean(pseu_acc_list), numpy.mean(acc_list)))
-    output.write('%15.6f %15.6f %15.6f %15.6f\n'%(numpy.std(numpy.array(dr_list), ddof=1), numpy.std(numpy.array(dr_list), ddof=0), max(avg_dr), min(avg_dr)))
+    #output.write('%15.6f %15.6f %15.6f %15.6f\n'%(numpy.std(numpy.array(dr_list), ddof=1), numpy.std(numpy.array(dr_list), ddof=0), max(avg_dr), min(avg_dr)))
     output.write(""%())
 if __name__ == '__main__':
     main()

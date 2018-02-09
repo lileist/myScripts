@@ -1,0 +1,37 @@
+#!/bin/bash
+#
+#$ -cwd
+#$ -j y
+#$ -N au147_fs
+#$ -m es
+#$ -V
+#$ -M leili_ut@gmail.com
+#$ -o ll_out
+#$ -e ll_er
+#$ -S /bin/bash
+
+#count_lbfgs.py 0 40 -187.891137
+
+WORKDIR=$(pwd)
+echo Directory on host is $WORKDIR
+
+#prepare the name of working directory on slave node
+dir=($(echo $WORKDIR | tr "/" "\n"))
+dir=(${dir[@]:(-2)})
+dir=$(printf "_%s" "${dir[@]}")
+dir=${dir:1}
+cd /state/partition1
+if [ -d "$dir" ]; then
+   rm -rf $dir
+fi
+cp -r $WORKDIR/ $dir
+
+#set environment variable on slave node
+source /state/partition1/package_forSlave/config_env.sh
+source /home/leili/bin/config_openmpi.sh
+
+#run job
+cd $dir
+python -u ./bh.py >out 
+cp -r /state/partition1/$dir/* $WORKDIR/.
+rm -r /state/partition1/$dir

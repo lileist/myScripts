@@ -6,13 +6,16 @@ from ase.build import sort
 
 seed=3021323
 host='Ag'
-impurity='Pt'
+impurity='Au'
+a_host = 4.0853
+a_imp  = 4.0782
+p_host = 0.75
+p_imp  = 0.25
+latticeconstant=a_host*p_host+a_imp*p_imp
+concentration_impurity=p_imp
 
-latticeconstant=4.0853*0.5+3.80*0.5
-concentration_impurity=0.5
 
-
-model=fcc111(host, size=(3,3,4), a=latticeconstant, vacuum=6.0, orthogonal=False)
+model=fcc111(host, size=(3,3,4), a=latticeconstant, vacuum=7.5, orthogonal=False)
 c = FixAtoms(mask=[x >2   for x in model.get_tags()])
 model.set_constraint(c)
 

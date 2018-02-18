@@ -4,8 +4,8 @@ from ase.io import write
 from ase.build import surface
 from ase import Atoms
 
-a=4.085  #Au
-b=4.078  #Ag
+a=4.085  #Ag
+b=4.078  #Au
 a_r = 3.0 
 b_r = 1.0
 

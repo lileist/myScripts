@@ -23,8 +23,18 @@ def main():
     acc_list = []
     pseu_acc_list = []
     force_calls = {}
+    t_jobs = 0
+    succ_jobs = 0
     maxbh_step = int(arg[4])
+    if len(arg)>5:
+       max_fcs = int(arg[5])
+    else:
+       max_fcs = 1*10e32
     increment = 5
+    if len(arg)>6:
+       u_target = float(arg[6])
+    else:
+       u_target = -1*10e32
     for i in range(int(arg[1]), int(arg[2]), increment):
        force_calls[str(i)] = 0
        dr = 0.0
@@ -61,16 +71,22 @@ def main():
           force_calls[str(i)] += float(fields[-1])
           #dr_list.append(float(line.split()[elem_number]))
           step += 1
-          if int(bh_step) == maxbh_step:
+          if int(bh_step) == maxbh_step or int(force_calls[str(i)]) >= max_fcs or float(u_min) <= u_target:
              break
        fields = bh_lines[len(bh_lines)-1].split()
        pseu_acc_list.append(float(pseu_acc)/float(step))
        acc_list.append(float(acc_numb)/float(step))
        #total_dr += dr
+       print u_min, u_target
+       if float(u_min) <= u_target:
+          succ_jobs+=1
+       t_jobs+=1
        total_step += step
        output.write("%10d  %8.6f %8.6f %s %8.6f %s\n"%(i, float(pseu_acc)/float(step), float(acc_numb)/float(step), bh_step, force_calls[str(i)], u_min))
        #avg_dr.append(dr/float(step))
-    output.write("%s  %8.6f %8.6f\n"%("average", numpy.mean(pseu_acc_list), numpy.mean(acc_list)))
+    print succ_jobs, t_jobs
+    output.write("%s %8.6f %15.4f  %8.6f %8.6f\n"%("average:", float(succ_jobs)/float(t_jobs), numpy.mean([v for k,v in force_calls.iteritems()]),
+                 numpy.mean(pseu_acc_list), numpy.mean(acc_list)))
     #output.write('%15.6f %15.6f %15.6f %15.6f\n'%(numpy.std(numpy.array(dr_list), ddof=1), numpy.std(numpy.array(dr_list), ddof=0), max(avg_dr), min(avg_dr)))
     output.write(""%())
 if __name__ == '__main__':

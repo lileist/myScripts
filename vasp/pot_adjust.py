@@ -314,7 +314,7 @@ def main():
               nelect_old = nelect_new
               nelect_new = - b / k
               continue
-        #step_size too large, leadding ot jump over the stationary point
+        #step_size too large, leading ot jump over the stationary point
         if guess:
            if numpy.sign(du_new) != numpy.sign(du_old):
               temp_nelect = nelect_new

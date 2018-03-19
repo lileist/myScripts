@@ -33,7 +33,7 @@ def main():
        max_fcs = int(arg[5])
     else:
        max_fcs = 1*10e32
-    increment = 5
+    increment = 1
     if len(arg)>6:
        u_target = float(arg[6])
     else:
@@ -59,8 +59,8 @@ def main():
              print i
              break
           fields = line.split()
-          curr_pot = float(fields[9])
-          u_min = fields[elem_number]
+          curr_pot = float(fields[6])
+          u_min = fields[8]
           bh_step = fields[1]
           if fields[1]=='-1':
              pot = curr_pot

@@ -7,6 +7,10 @@ An example of inputfile (any line starts with '#' will be ignored):
     cp2k_inp = suppl.inp
     job_submit_script = qsub.hf
     job_submit_cmd    = sbatch
+    nsw=
+    ibrion=
+    ediff=
+    nelmin=
 """
 import sys
 import os
@@ -133,6 +137,79 @@ def read_old_u_log(filename, target_pot):
     b = fit_paras[1]
     return nelect, pot, (float(target_pot) - b)/k
 
+def run_vasp(run_type='geo_opt', vasp_cmd = '',std_out = 'out',nelect_new=None):
+    if run_type == 'geo_opt':
+       rerun = True
+       while rerun:
+          print "##### vasp running"
+          os.system(vasp_cmd)
+          proc = subprocess.Popen("grep 'reached required accuracy' OUTCAR|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+          vasp_done = proc.communicate()
+          print "vasp run infor",vasp_done[0]
+          proc_2 = subprocess.Popen("grep 'please rerun with smaller EDIFF' "+ std_out + "|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+          vasp_output = proc_2.communicate()
+          if "stopping structural energy minimisation" not in vasp_done[0]:
+             if 'please rerun with smaller EDIFF' in vasp_output[0]:
+                os.system("cp CONTCAR POSCAR")
+                continue
+             else:
+                print "job with nelect=", nelect_new, "is not converged"
+                sys.exit() 
+          else:
+             proc_2 = subprocess.Popen("grep 'energy  without entropy' OUTCAR |tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+             vasp_output = proc_2.communicate()
+             energy = vasp_output[0].split()[6]
+             rerun = False
+       os.system("cp CONTCAR POSCAR")
+       return energy
+
+    if run_type == 'energy':
+       print "##### vasp running"
+       os.system(vasp_cmd)
+       proc = subprocess.Popen("grep 'aborting loop because EDIFF is reached' OUTCAR|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+       vasp_done = proc.communicate()
+       print "vasp run infor",vasp_done[0]
+       proc_2 = subprocess.Popen("grep 'energy  without entropy' OUTCAR |tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+       vasp_output = proc_2.communicate()
+       energy = vasp_output[0].split()[6]
+       if "EDIFF is reached" not in vasp_done[0]:
+          print "job with nelect=", nelect_new, "is not converged"
+          sys.exit()
+       return energy
+
+def prepare_incar(lines, nelect_new, istart, icharg, ediff, nsw, ibrion, nelmin, vaspsol = 1):
+        output = open('INCAR', 'w')
+        for line in lines:
+            if 'NELECT' in line and nelect_new is not None: 
+               output.write("%s %15.6f\n"%('NELECT = ', nelect_new))
+               continue
+            if 'ISTART'  in line:
+               output.write("%s %d\n"%('ISTART = ', istart))
+               continue
+            if 'ICHARG'  in line:
+               output.write("%s %d\n"%('ICHARG = ', icharg))
+               continue
+            if 'EDIFF' in line and 'EDIFFG' not in line:
+               output.write("%s %s\n"%('EDIFF = ', '1E-8'))
+               continue
+            if 'NSW'  in line:
+               output.write("%s %d\n"%('NSW = ', nsw))
+               continue
+            if 'IBRION'  in line:
+               output.write("%s %d\n"%('IBRION = ', ibrion))
+               continue
+            if 'NELMIN'  in line:
+               output.write("%s %d\n"%('NELMIN = ', nelmin))
+               continue
+            output.write("%s"%(line))
+        if vaspsol == 1:
+           output.write("%s\n"%(' LSOL = .TRUE.'))
+           output.write("%s\n"%(' EB_K = 78.4'))
+           #output.write("%s\n"%(' TAU = 0.00'))
+           output.write("%s\n"%(' LAMBDA_D_K = 3.0'))
+           output.write("%s\n"%(' NC_K    =  0.0047300'))
+        output.close()
+
 def main():
     arg = sys.argv
     paras = readinputs(arg[1])
@@ -152,7 +229,8 @@ def main():
        linearFitting = int(paras['linearFitting'])
     else:
        linearFitting = None
-
+    
+    run_type = paras['run_type']
     step_size = float(paras['step_size'])
     max_step = int(paras['max_step'])
     vaspsol = int(paras['vaspsol'])
@@ -170,26 +248,7 @@ def main():
        nelect_list, du_list, nelect_new = read_old_u_log('u_log.dat', u_target) 
 
     #structure optimization with given parameters in INCAR
-    if 'geo_opt' in paras:
-       rerun = True
-       while rerun:
-          print "##### vasp running"
-          os.system(paras['run_vasp'])
-          proc = subprocess.Popen("grep 'reached required accuracy' OUTCAR|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-          vasp_done = proc.communicate()
-          print "vasp run infor",vasp_done[0]
-          proc_2 = subprocess.Popen("grep 'please rerun with smaller EDIFF' "+ paras['std_out']+ "|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-          vasp_output = proc_2.communicate()
-          if "stopping structural energy minimisation" not in vasp_done[0]:
-             if 'please rerun with smaller EDIFF' in vasp_output[0]:
-                os.system("cp CONTCAR POSCAR")
-                continue
-             else:
-                print "job with nelect=", nelect_new, "is not converged"
-                sys.exit() 
-          else:
-             rerun = False
-       os.system("cp CONTCAR POSCAR")
+    run_vasp(run_type='geo_opt', vasp_cmd=paras['run_vasp'], std_out=paras['std_out'],nelect_new=nelect_new)
 
     log_u = open('u_log.dat','w')
     log_u.write("{:5s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:15s}{:22s}\n".format("step", "nelect_new", "vacc_level","fermi","u_new", "du_new", "k", "vacc_slop","energy"))
@@ -213,51 +272,16 @@ def main():
               nelect_new = nelect_new - step_size_0
            else:
               nelect_new = nelect_new + step_size_0
-        #prepare INCAR
-        output = open('INCAR', 'w')
-        for line in lines:
-            if 'NELECT' in line and nelect_new is not None: 
-               output.write("%s %15.6f\n"%('NELECT = ', nelect_new))
-               continue
-            if 'ISTART'  in line:
-               output.write("%s %d\n"%('ISTART = ', istart))
-               continue
-            if 'ICHARG'  in line:
-               output.write("%s %d\n"%('ICHARG = ', icharg))
-               continue
-            if 'EDIFF' in line:
-               output.write("%s %s\n"%('EDIFF = ', '1E-8'))
-               continue
-            if 'NSW'  in line:
-               output.write("%s %d\n"%('NSW = ', 0))
-               continue
-            if 'IBRION'  in line:
-               output.write("%s %d\n"%('IBRION = ', -1))
-               continue
-            if 'NELMIN'  in line:
-               output.write("%s %d\n"%('NELMIN = ', 2))
-               continue
-            output.write("%s"%(line))
-        if vaspsol == 1:
-           output.write("%s\n"%(' LSOL = .TRUE.'))
-           output.write("%s\n"%(' EB_K = 78.4'))
-           #output.write("%s\n"%(' TAU = 0.00'))
-           output.write("%s\n"%(' LAMBDA_D_K = 3.0'))
-           output.write("%s\n"%(' NC_K    =  0.0047300'))
-        output.close()
+        #prepare INCAR and run vasp without vaspsol. GEO_OPT will be done
+        prepare_incar(lines, nelect_new, istart, icharg, paras['ediff'], 
+                      int(paras['nsw']), int(paras['ibrion']),int(paras['nelmin']),vaspsol=0)
+        energy = run_vasp(run_type='geo_opt', vasp_cmd=paras['run_vasp'],std_out=paras['std_out'],nelect_new=nelect_new)
 
-        #run vasp
-        print "##### vasp running"
-        os.system(paras['run_vasp'])
-        proc = subprocess.Popen("grep 'aborting loop because EDIFF is reached' OUTCAR|tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        vasp_done = proc.communicate()
-        print "vasp run infor",vasp_done[0]
-        proc_2 = subprocess.Popen("grep 'energy  without entropy' OUTCAR |tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        vasp_output = proc_2.communicate()
-        energy = vasp_output[0].split()[6]
-        if "EDIFF is reached" not in vasp_done[0]:
-           print "job with nelect=", nelect_new, "is not converged"
-           sys.exit()
+        #prepare INCAR and run vasp with vaspsol. GEO_OPT or NOT <-- run_type = 'geo_opt' or 'energy'
+        if vaspsol == 1:
+           prepare_incar(lines, nelect_new, istart, icharg, paras['ediff'], 
+                         int(paras['nsw']), int(paras['ibrion']),int(paras['nelmin']),vaspsol)
+           energy = run_vasp(run_type=run_type, vasp_cmd=paras['run_vasp'],std_out=paras['std_out'],nelect_new=nelect_new)
 
         #read nelect from OUTCAR
         if nelect_new is None:
@@ -334,6 +358,40 @@ def main():
         temp_nelect = nelect_new
         nelect_new = nelect_new - step_size * k
         nelect_old = temp_nelect
+    """
+        #prepare INCAR
+        output = open('INCAR', 'w')
+        for line in lines:
+            if 'NELECT' in line and nelect_new is not None: 
+               output.write("%s %15.6f\n"%('NELECT = ', nelect_new))
+               continue
+            if 'ISTART'  in line:
+               output.write("%s %d\n"%('ISTART = ', istart))
+               continue
+            if 'ICHARG'  in line:
+               output.write("%s %d\n"%('ICHARG = ', icharg))
+               continue
+            if 'EDIFF' in line:
+               output.write("%s %s\n"%('EDIFF = ', '1E-8'))
+               continue
+            if 'NSW'  in line:
+               output.write("%s %d\n"%('NSW = ', 0))
+               continue
+            if 'IBRION'  in line:
+               output.write("%s %d\n"%('IBRION = ', -1))
+               continue
+            if 'NELMIN'  in line:
+               output.write("%s %d\n"%('NELMIN = ', 2))
+               continue
+            output.write("%s"%(line))
+        if vaspsol == 1:
+           output.write("%s\n"%(' LSOL = .TRUE.'))
+           output.write("%s\n"%(' EB_K = 78.4'))
+           #output.write("%s\n"%(' TAU = 0.00'))
+           output.write("%s\n"%(' LAMBDA_D_K = 3.0'))
+           output.write("%s\n"%(' NC_K    =  0.0047300'))
+        output.close()
+    """
 if __name__ == '__main__':
     main()
     

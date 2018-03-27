@@ -48,6 +48,7 @@ def main():
     arg = sys.argv
     configs = read(arg[1],index=0,format='xyz')
     configs.set_cell([[19.9683,0,0],[0,19.9683,0],[0,0,35.0]],scale_atoms=False,fix=None)
+#    configs.set_cell([[35.0,0,0],[0,35.0,0],[0,0,35.0]],scale_atoms=False,fix=None)
     configs.set_pbc((True, True, True))
     wat=[]
     oxygen=[]
@@ -69,11 +70,22 @@ def main():
               if len(wat_temp) == 0:
                  wat_temp.append(o)
               wat_temp.append(h)
+        #print len(wat_temp)
         if len(wat_temp)>2:
            wat_numb += 1
            output.write('%s %15.6f %15.6f  %15.6f\n' % (wat_temp[0].symbol, wat_temp[0].x, wat_temp[0].y, wat_temp[0].z))
            output.write('%s %15.6f %15.6f  %15.6f\n' % (wat_temp[1].symbol, wat_temp[1].x, wat_temp[1].y, wat_temp[1].z))
            output.write('%s %15.6f %15.6f  %15.6f\n' % (wat_temp[2].symbol, wat_temp[2].x, wat_temp[2].y, wat_temp[2].z))
+        if len(wat_temp) <=2 and len(wat_temp) > 0:
+           wat_temp[0].symbol = 'N'
+           print wat_temp[0].index
+           for j in range(len(wat_temp)):
+             output.write('%s %15.6f %15.6f  %15.6f\n' % (wat_temp[j].symbol, wat_temp[j].x, wat_temp[j].y, wat_temp[j].z))
+        if len(wat_temp) > 3:
+           wat_temp[0].symbol = 'N'
+           print wat_temp[0].index
+           for j in range(len(wat_temp)):
+             output.write('%s %15.6f %15.6f  %15.6f\n' % (wat_temp[j].symbol, wat_temp[j].x, wat_temp[j].y, wat_temp[j].z))
     print wat_numb
 if __name__ == '__main__':
     main()

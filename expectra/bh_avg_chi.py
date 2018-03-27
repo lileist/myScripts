@@ -8,7 +8,8 @@ from ase.io import read, write
 from ase.io.vasp import write_vasp
 from ase.utils.geometry import sort
 """
-bh [start_number] [end_number] [rawNumberOfElement] [MaxBH_Step] [MaxFC_step] [U_target]
+bh [start_number] [end_number] [rawNumberOfMinValue] [MaxBH_Step] [MaxFC_step] [U_target] [E_std]
+"E_std: used to seperate structure with similar chi but differe E"
 """
 def main():
     directory = os.getcwd()
@@ -38,6 +39,12 @@ def main():
        u_target = float(arg[6])
     else:
        u_target = -1*10e32
+    if len(arg) >7:
+       e_std = float(arg[7])
+    else:
+       e_std = 1*10e32
+    print e_std
+    output.write("BH:%s  FC:%s  %15.6f %15.6f\n"%(arg[4],arg[5],u_target,e_std))
     for i in range(int(arg[1]), int(arg[2]), increment):
        force_calls[str(i)] = 0
        dr = 0.0
@@ -52,6 +59,7 @@ def main():
           print 'run-',i, 'is not run'
           continue
        bh_lines = f_bh.readlines()
+       reached = False
        for line in bh_lines:
           if line.startswith("#"):
              continue
@@ -74,15 +82,20 @@ def main():
           force_calls[str(i)] += float(fields[-1])
           #dr_list.append(float(line.split()[elem_number]))
           step += 1
-          if int(bh_step) == maxbh_step or int(force_calls[str(i)]) >= max_fcs or float(u_min) <= u_target:
-             break
+          if float(float(fields[7])) <= u_target and float(fields[6]) < e_std:
+                reached = True
+                break
+          if int(bh_step) == maxbh_step or int(force_calls[str(i)]) >= max_fcs:
+                break
        fields = bh_lines[len(bh_lines)-1].split()
        pseu_acc_list.append(float(pseu_acc)/float(step))
        acc_list.append(float(acc_numb)/float(step))
        #total_dr += dr
        print u_min, u_target
-       if float(u_min) <= u_target:
+       if reached:
           succ_jobs+=1
+       else:
+         print str(i), "failed"
        t_jobs+=1
        total_step += step
        output.write("%10d  %8.6f %8.6f %s %8.6f %s\n"%(i, float(pseu_acc)/float(step), float(acc_numb)/float(step), bh_step, force_calls[str(i)], u_min))

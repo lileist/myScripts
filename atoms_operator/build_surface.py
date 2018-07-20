@@ -2,9 +2,13 @@ from ase.lattice.surface import *
 from ase.constraints import FixAtoms
 from ase.io import write
 
-a=3.71
+#a=3.71
 #slab = fcc111('Cu', size=(4,4,4), a=a, vacuum=10.0, orthogonal=True)
-slab = fcc100('Cu', size=(3,3,3), a=a, vacuum=10.0)
+#slab = fcc100('Cu', size=(3,3,3), a=a, vacuum=10.0)
+#slab = fcc211('Cu', size=(3,4,3), a=a, vacuum=5.0, orthogonal=True)
+a= 4.046
+slab = fcc111('Al', size=(4,6,6), a=a, vacuum=10.0, orthogonal=True)
+#slab = fcc100('Cu', size=(3,3,3), a=a, vacuum=10.0)
 #slab = fcc211('Cu', size=(3,4,3), a=a, vacuum=5.0, orthogonal=True)
 #a= 3.92
 #slab = fcc111('Pt', size=(4,4,4), a=a, vacuum=7.5, orthogonal=True)

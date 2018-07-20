@@ -1,12 +1,24 @@
+"""
+This code used to calculate coordination number of Au and number of Au atoms on the surface
+"""
 #!/usr/bin/env python
-from ase.io import read, write
-from ase.io.trajectory import Trajectory
-from ase.calculators.lammpsrun import Prism
-from ase import Atoms
-import numpy
-import ase
-import sys
 
+import sys
+import os
+import re
+import glob
+import ast
+import pandas as pd
+import matplotlib.pyplot as plt
+from pele.storage import Database
+import numpy
+import mpi4py.MPI
+from ase.neighborlist import neighbor_list as nl
+from ase.io import read
+from ase import Atoms
+from operator import itemgetter
+
+md_time=[]
 def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
     """Method which reads a LAMMPS dump file."""
     if filename is None:
@@ -45,6 +57,7 @@ def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
            for i in range(n_atoms + 5):
                line = f.readline()
         else:
+           md_time.append(itrj)
            line = f.readline()
            if 'ITEM: BOX BOUNDS' in line:
                # save labels behind "ITEM: BOX BOUNDS" in triclinic case (>=lammps-7Jul09)
@@ -70,8 +83,8 @@ def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
                    id.append( int(fields[atom_attributes['id']]) )
                    type.append( specorder[int(fields[atom_attributes['type']])-1] )
                    positions.append( [ float(fields[atom_attributes[x]]) for x in ['x', 'y', 'z'] ] )
-#                   velocities.append( [ float(fields[atom_attributes[x]]) for x in ['vx', 'vy', 'vz'] ] )
-#                   forces.append( [ float(fields[atom_attributes[x]]) for x in ['fx', 'fy', 'fz'] ] )
+                   velocities.append( [ float(fields[atom_attributes[x]]) for x in ['vx', 'vy', 'vz'] ] )
+                   forces.append( [ float(fields[atom_attributes[x]]) for x in ['fx', 'fy', 'fz'] ] )
 #                   if hasattr('charges'):
 #                        charges.append(  float(fields[atom_attributes['q']]) )
 
@@ -81,15 +94,15 @@ def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
            
                cell = [[xhilo,0,0],[0,yhilo,0],[0,0,zhilo]]
            
-               sort_atoms = sorted(zip(id, type, positions))
+               sort_atoms = sorted(zip(id, type, positions, velocities, forces))
                
                cell_atoms = numpy.array(cell)
-               type_atoms = [ types for (ids, types, position) in sort_atoms]
-               positions = [ position for (ids, types, position) in sort_atoms]
-               #forces = [ force for (ids, types, position) in sort_atoms]
+               type_atoms = [ types for (ids, types, position, velocity, force) in sort_atoms]
+               positions = [ position for (ids, types, position, velocity, force) in sort_atoms]
+               forces = [ force for (ids, types, position, velocity, force) in sort_atoms]
 
                positions_atoms = numpy.array(positions)
-               #forces_atoms = numpy.array(forces)
+               forces_atoms = numpy.array(forces)
            
 #               positions_atoms = np.array( [np.dot(np.array(r), rotation_lammps2ase) for r in positions] )
 #               velocities_atoms = np.array( [np.dot(np.array(v), rotation_lammps2ase) for v in velocities] )
@@ -97,30 +110,66 @@ def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
 
                count += 1
                if count % every == 0: 
-                  atoms.append(Atoms(type_atoms, positions=positions_atoms, cell=cell_atoms, pbc=True))
+                  atoms.append([itrj,Atoms(type_atoms, positions=positions_atoms, cell=cell_atoms, pbc=True)])
     f.close()
     return atoms
 
+def get_coord(atoms):
+    surf_Au = 0
+    i = nl('i', atoms,
+                     {('Au','Au'):3.3,
+                     ('Au','Pd'):3.3,
+                     ('Pd','Pd'):3.3
+                     })
+    coord = numpy.bincount(i)
+    index_Au = [ atom.index for atom in atoms if atom.symbol=='Au']
+    Au_coord=0
+    for i in range(len(coord)):
+       if i in index_Au:
+          Au_coord += coord[i]
+          if coord[i] < 10:
+            surf_Au += 1
+    return float(Au_coord)/float(len(index_Au)),surf_Au 
 
-def main():
-   arg = sys.argv
-   inputfile = arg[1]
-   spec_one = arg[2]
-   print [spec_one]
-   spec_two = arg[3]
-   outputfile = arg[4]
-   p1 = read_lammps_trj(filename=inputfile,
-                        skip = 1,
-                        every = 1,
-                        specorder = [spec_one, spec_two])
-   cm = p1[0].get_center_of_mass()
-   print cm
-#   log_structures = Trajectory(filename+'.traj',
-#                            'w', atoms)
-   for p in p1:
-      p.wrap(center=(0.5,0.5,0.5))
-      #p.center(about=cm)  
-   write(filename=outputfile,images=p1,format=outputfile.split('.')[1])
-#   write(filename='au.xyz',images=p1,format='xyz')
-if __name__ == '__main__':
-    main()
+def bunch_cal_coord(configs):
+    results =[]
+    for config in configs:
+       Au_coord, surf_Au = get_coord(config[1])
+       results.append([config[0],Au_coord, surf_Au])
+    return numpy.array(results)
+
+args = sys.argv
+
+configs = read_lammps_trj(filename=args[1],
+                     skip = int(args[2]),
+                     every = int(args[3]),
+                     specorder = ['Pd', 'Au'])
+
+comm = mpi4py.MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+root = 0
+sendbuf = []
+
+if rank == 0:
+   #split data into chunks based on size of rank
+   chunks = [[] for _ in range(size)]
+   for i, chunk in enumerate(configs):
+     chunks[i % size].append(chunk)
+#   print("chunks:",chunks)
+   sendbuf=chunks
+#else:
+#   sendbuf=None
+#   v=None
+v=comm.scatter(sendbuf, root)
+v = bunch_cal_coord(v)
+recvbuf=comm.gather(v,root)
+
+if comm.rank==0:
+   f = open("coord_time.dat",'w')
+   print recvbuf
+#   recvbuf = sorted(recvbuf, key=itemgetter(0))
+#   recvbuf = sorted(recvbuf, key=lambda x:x[0])
+   for i in range(len(recvbuf)):
+      for item in recvbuf[i]:     
+         f.write("%20d  %6.4f  %6d\n"%(item[0], item[1], item[2]))

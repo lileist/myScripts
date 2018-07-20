@@ -1,0 +1,15 @@
+#!/bin/bash       
+#SBATCH -J 4w_thermalIntg
+#SBATCH -o job.o%j
+#SBATCH -n 48
+#SBATCH -p normal
+#SBATCH -t 48:00:00
+###SBATCH -p development
+###SBATCH -t 02:00:00
+#SBATCH -A A-chgh 
+
+#SBATCH --mail-user=leili_ut@utexas.edu
+#SBATCH --mail-type=begin
+#SBATCH --mail-type=end
+
+ibrun /home1/04279/leili/cp2k-3.0/exe/ls5/cp2k.popt suppl.inp >suppl.out

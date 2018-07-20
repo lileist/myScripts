@@ -1,12 +1,11 @@
  &GLOBAL
    PRINT_LEVEL  LOW
-   PROJECT_NAME  4w
+   PROJECT_NAME  3w
    RUN_TYPE  MD
  &END GLOBAL
 
 # &EXT_RESTART
-#  RESTART_FILE_NAME 4w-1.restart
-#  RESTART_METADYNAMICS T
+#  RESTART_FILE_NAME 3w-1.restart
 # &END EXT_RESTART
 
  &MOTION
@@ -21,77 +20,42 @@
      &VELOCITIES LOW
      &END VELOCITIES
    &END PRINT
+   &CONSTRAINT
+      &COLLECTIVE
+        COLVAR 1
+        INTERMOLECULAR
+        TARGET   [angstrom] 0.6
+#       TARGET_GROWTH  0.2
+#       TARGET_LIMIT   
+      &END COLLECTIVE
+      &LAGRANGE_MULTIPLIERS
+        COMMON_ITERATION_LEVELS 1
+      &END
+   &END CONSTRAINT
    &MD
     ENSEMBLE     NVT
-    STEPS        200000
+    STEPS        30000
     TIMESTEP     0.5
-    TEMPERATURE  300
+    TEMPERATURE  50
     &THERMOSTAT  NOSE
       REGION     GLOBAL
       TYPE NOSE
       &NOSE
         LENGTH   3
         MTS      2
-        TIMECON  50
+        TIMECON  10
         YOSHIDA  3
       &END NOSE
     &END THERMOSTAT
    &END MD
-   &FREE_ENERGY
-     &METADYN
-       DO_HILLS 
-       LAGRANGE
-       NT_HILLS 30 #how frequently the gaussian hills are added. Here is every 30 time steps.
-       WW 1.0e-4   #height of gaussian hills added. barrier/10 or samller is suggested. The selection of WW and NT_HILLS will greatly affect resutls
-       &METAVAR
-         LAMBDA 0.8
-         MASS 50.0
-         SCALE [angstrom] 0.1  #width of gaussian hills. smaller is better but computational cost will increase
-         COLVAR 1
-         &WALL         #add a wall to restrict collective varialbe. used to narrow the sample space. 
-           POSITION [angstrom] 2.5
-           TYPE QUARTIC
-           &QUARTIC
-              DIRECTION WALL_PLUS
-              K [kcalmol] 100.0
-           &END QUARTIC
-         &END WALL
-       &END METAVAR
-       &PRINT
-         &COLVAR
-            COMMON_ITERATION_LEVELS 50000
-            &EACH
-              MD 1
-            &END
-         &END
-         &HILLS
-            COMMON_ITERATION_LEVELS 50000
-            FILENAME HILLS
-            &EACH
-              MD 1
-            &END
-         &END
-         &PROGRAM_RUN_INFO  MEDIUM
-            COMMON_ITERATION_LEVELS 50000
-         &END
-       &END
-     &END METADYN
-   &END
-   &PRINT
-     &RESTART
-        &EACH
-          MD     1
-        &END
-     &END
-   &END
  &END MOTION
 
  &FORCE_EVAL
    METHOD        QS
    STRESS_TENSOR  NONE
    &DFT
-     BASIS_SET_FILE_NAME /home1/04279/leili/cp2k-3.0/data/BASIS_MOLOPT     #location of basis
-     POTENTIAL_FILE_NAME /home1/04279/leili/cp2k-3.0/data/GTH_POTENTIALS   #location of potentials
+     BASIS_SET_FILE_NAME /usr/local/cp2k_3.0/cp2k/data/BASIS_MOLOPT
+     POTENTIAL_FILE_NAME /usr/local/cp2k_3.0/cp2k/data/GTH_POTENTIALS
 #     UKS T
      &SCF
        MAX_ITER_LUMO     299
@@ -138,11 +102,6 @@
          MAX_SCF                 5
          STEP_SIZE               5.000E-01
        &END OUTER_SCF
-       &PRINT
-         &RESTART
-           LOG_PRINT_KEY
-         &END
-       &END
      &END SCF
      &QS
        EPS_DEFAULT          1.000E-10
@@ -183,7 +142,7 @@
           TYPE DFTD3
           REFERENCE_FUNCTIONAL BLYP
           CALCULATE_C9_TERM .TRUE.
-          PARAMETER_FILE_NAME  /home1/04279/leili/cp2k-3.0/data/dftd3.dat  #location of dftd3.dat
+          PARAMETER_FILE_NAME  /usr/local/cp2k_3.0/cp2k/data/dftd3.dat
           R_CUTOFF 15.0
         &END PAIR_POTENTIAL
       &END vdW_POTENTIAL
@@ -203,12 +162,35 @@
       PERIODIC  XYZ
       MULTIPLE_UNIT_CELL  1  1  1
      &END CELL
+
      &TOPOLOGY
        MULTIPLE_UNIT_CELL   1  1  1
        COORD_FILE_FORMAT XYZ
-       COORD_FILE_NAME  NO2SO3_1w.xyz    #inputfile of the initial structure
+       COORD_FILE_NAME   geometry.xyz
+       #CONNECTIVITY GENERATE
+       #&GENERATE
+       #  BONDLENGTH_MAX 2.5
+       #&END
      &END TOPOLOGY
-  
+
+     &COLVAR
+       &COMBINE_COLVAR
+          &COLVAR
+             &DISTANCE
+                ATOMS 15 17
+             &END
+          &END COLVAR
+          &COLVAR
+             &DISTANCE
+                ATOMS 11 19
+             &END
+          &END COLVAR
+          FUNCTION CV1+CV2
+          VARIABLES CV1 CV2
+          ERROR_LIMIT 1.0E-8
+       &END
+    &END
+
      &KIND O 
        BASIS_SET TZV2P-MOLOPT-GTH-q6
        POTENTIAL GTH-BLYP-q6
@@ -219,19 +201,9 @@
        POTENTIAL GTH-BLYP-q1
      &END KIND
 
-     &KIND S
-       BASIS_SET TZV2P-MOLOPT-GTH-q6
-       POTENTIAL GTH-BLYP-q6
+     &KIND N
+       BASIS_SET TZV2P-MOLOPT-GTH-q5
+       POTENTIAL GTH-BLYP-q5
      &END KIND
-
-     &COLVAR
-       &DISTANCE 
-         ATOMS  5 8
-         AXIS XYZ
-       &END DISTANCE
-     &END COLVAR
-
    &END SUBSYS
  &END FORCE_EVAL
-
-

@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+#$ -cwd
+#$ -j y
+#$ -N 4w_it
+#$ -m es
+#$ -V
+#$ -M leili_ut@gmail.com
+#$ -pe mpi24 24
+#$ -o ll_out
+#$ -e ll_er
+#$ -S /bin/bash
+/usr/local/openmpi/openmpi-1.8.1_gnu/bin/mpiexec -np 24 /usr/local/cp2k_3.0/cp2k/exe/Linux-x86-64-gfortran/cp2k.popt -o stdout -i suppl.inp

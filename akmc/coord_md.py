@@ -1,5 +1,6 @@
 """
 This code used to calculate coordination number of Au and number of Au atoms on the surface
+mpirun -n 24 coord_md.py [trajectoryFilename] [skip] [every]
 """
 #!/usr/bin/env python
 
@@ -18,7 +19,6 @@ from ase.io import read
 from ase import Atoms
 from operator import itemgetter
 
-md_time=[]
 def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
     """Method which reads a LAMMPS dump file."""
     if filename is None:
@@ -57,7 +57,6 @@ def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
            for i in range(n_atoms + 5):
                line = f.readline()
         else:
-           md_time.append(itrj)
            line = f.readline()
            if 'ITEM: BOX BOUNDS' in line:
                # save labels behind "ITEM: BOX BOUNDS" in triclinic case (>=lammps-7Jul09)
@@ -136,14 +135,8 @@ def bunch_cal_coord(configs):
     for config in configs:
        Au_coord, surf_Au = get_coord(config[1])
        results.append([config[0],Au_coord, surf_Au])
+       print config[0],Au_coord, surf_Au
     return numpy.array(results)
-
-args = sys.argv
-
-configs = read_lammps_trj(filename=args[1],
-                     skip = int(args[2]),
-                     every = int(args[3]),
-                     specorder = ['Pd', 'Au'])
 
 comm = mpi4py.MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -152,11 +145,15 @@ root = 0
 sendbuf = []
 
 if rank == 0:
+   args = sys.argv
+   configs = read_lammps_trj(filename=args[1],
+                        skip = int(args[2]),
+                        every = int(args[3]),
+                        specorder = ['Pd', 'Au'])
    #split data into chunks based on size of rank
    chunks = [[] for _ in range(size)]
    for i, chunk in enumerate(configs):
      chunks[i % size].append(chunk)
-#   print("chunks:",chunks)
    sendbuf=chunks
 #else:
 #   sendbuf=None

@@ -8,9 +8,9 @@ import os
 import re
 import glob
 import ast
-import pandas as pd
-import matplotlib.pyplot as plt
-from pele.storage import Database
+#import pandas as pd
+#import matplotlib.pyplot as plt
+#from pele.storage import Database
 import numpy
 import mpi4py.MPI
 from ase.neighborlist import neighbor_list as nl
@@ -117,9 +117,9 @@ def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
 def get_coord(atoms):
     surf_Au = 0
     i = nl('i', atoms,
-                     {('Au','Au'):3.3,
-                     ('Au','Pd'):3.3,
-                     ('Pd','Pd'):3.3
+                     {('Au','Au'):3.6,
+                     ('Au','Pd'):3.6,
+                     ('Pd','Pd'):3.6
                      })
     coord = numpy.bincount(i)
     index_Au = [ atom.index for atom in atoms if atom.symbol=='Au']
@@ -127,7 +127,7 @@ def get_coord(atoms):
     for i in range(len(coord)):
        if i in index_Au:
           Au_coord += coord[i]
-          if coord[i] < 10:
+          if coord[i] < 9:
             surf_Au += 1
     return float(Au_coord)/float(len(index_Au)),surf_Au 
 
@@ -167,7 +167,8 @@ recvbuf=comm.gather(v,root)
 
 if comm.rank==0:
    f = open("coord_time.dat",'w')
-   print recvbuf
+#   print len(recvbuf)
+#   print recvbuf
 #   recvbuf = sorted(recvbuf, key=itemgetter(0))
 #   recvbuf = sorted(recvbuf, key=lambda x:x[0])
    for i in range(len(recvbuf)):

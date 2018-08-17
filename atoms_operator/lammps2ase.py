@@ -7,7 +7,7 @@ import numpy
 import ase
 import sys
 
-def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
+def read_lammps_trj(filename=None, skip=0, every=1, maximum=1E36, specorder=None):
     """Method which reads a LAMMPS dump file."""
     if filename is None:
         print "No trajectory file is provided"
@@ -19,10 +19,11 @@ def read_lammps_trj(filename=None, skip=0, every=1, specorder=None):
     f = open(filename, 'r')
     n_atoms = 0
     count = 0
+    itrj = 0
     while True:
         line = f.readline()
 
-        if not line:
+        if not line or itrj > maximum:
             break
 
         if 'ITEM: TIMESTEP' in line:
@@ -110,8 +111,9 @@ def main():
    spec_two = arg[3]
    outputfile = arg[4]
    p1 = read_lammps_trj(filename=inputfile,
-                        skip = 1,
+                        skip = int(arg[5]),
                         every = 1,
+                        maximum = int(arg[6]),
                         specorder = [spec_one, spec_two])
    cm = p1[0].get_center_of_mass()
    print cm

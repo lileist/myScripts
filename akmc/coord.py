@@ -9,13 +9,14 @@ import re
 import glob
 import ast
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from pele.storage import Database
 from pele.landscape import database2graph
 from pele.utils.disconnectivity_graph import DisconnectivityGraph
 import numpy
 from ase.neighborlist import neighbor_list as nl
 from ase.io import read
+import collections
 
 def readinputs(filename):
     f=open(filename, 'r')
@@ -32,9 +33,9 @@ def readinputs(filename):
 def get_coord(atoms):
     surf_Au = 0
     i = nl('i', atoms,
-                     {('Au','Au'):3.3,
-                     ('Au','Pd'):3.3,
-                     ('Pd','Pd'):3.3
+                     {('Au','Au'):3.4,
+                     ('Au','Pd'):3.4,
+                     ('Pd','Pd'):3.4
                      })
     coord = numpy.bincount(i)
     index_Au = [ atom.index for atom in atoms if atom.symbol=='Au']
@@ -46,7 +47,17 @@ def get_coord(atoms):
             surf_Au += 1
     return float(Au_coord)/float(len(index_Au)),surf_Au 
 
-
+arg = sys.argv
+state_coords = {}
+if len(arg) > 1:
+   if os.path.isfile(arg[1]):
+      coord_file = open(arg[1],'r')
+      print "reading coords"
+      lines = coord_file.readlines()
+      for line in lines:
+         fields=line.split()
+         state_coords[int(fields[0])]=numpy.array([float(fields[1]), float(fields[2]), float(fields[3])])
+      coord_file.close()
 current = os.getcwd()
 state_main_dir = current+"/states/"
 os.chdir(state_main_dir)
@@ -63,7 +74,17 @@ for f in glob.glob('*'):
 state_listdir.sort()
 
 for dir in state_listdir:
+   if dir in state_coords:
+      continue
    os.chdir(state_main_dir+str(dir))
    atoms = read('reactant.con',index=0)
    Au_coord, surface_Au = get_coord(atoms)
+   state_coords[dir]=numpy.array([states_e[dir], Au_coord, surface_Au])
    print dir, states_e[dir], Au_coord, surface_Au
+os.chdir(current)
+od_dict = collections.OrderedDict(sorted(state_coords.items()))
+output = open('coord_e_all.dat','w')
+output.write("%8s %12s %12s %4s\n"%('state','energy','coords','#ofAu'))
+for k, v in od_dict.iteritems():
+   output.write("%8d %12.4f %12.4f %4d\n"%(k, v[0], v[1], v[2]))
+output.close()

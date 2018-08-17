@@ -21,84 +21,38 @@ from ase.neighborlist import neighbor_list as nl
 from ase.io import read, write
 from ase.io.trajectory import Trajectory
 
-def get_coord(atoms):
-    surf_Au = 0
-    surface_atom = []
-    i = nl('i', atoms,
-                     {('Au','Au'):3.4,
-                     ('Au','Pd'):3.4,
-                     ('Pd','Pd'):3.4
-                     })
-    coord = numpy.bincount(i)
-    index_Au = [ atom.index for atom in atoms if atom.symbol=='Au']
-    Au_coord=0
-    for i in range(len(coord)):
-       if coord[i] < 11:
-          surface_atom.append(i)
-       if i in index_Au:
-          Au_coord += coord[i]
-          if coord[i] < 10:
-            surf_Au += 1
-    return float(Au_coord)/float(len(index_Au)),surf_Au,surface_atom
 
 args = sys.argv
-coord_e = pd.read_table(args[1], delimiter = r'\s+', skiprows=[0], names=['state-number', 'energy', 'coord-number', 'surface-Au'])
-
-minima = []
-initial = []
-start_coord = int(args[2])
-end_coord = int(args[3])
-
-#find start point for each coord_N
-for i in range(start_coord, end_coord):
-   select_coord_o = coord_e[coord_e['surface-Au']>=i]
-   try:
-      select_coord = select_coord_o[select_coord_o['state-number']>initial[i-1-start_coord][1]]
-   except:
-      select_coord = select_coord_o
-      #initial.append([i, select_coord['state-number'].iloc[0]])
-   #make sure the 10 consecutive states have coord_N=i
-   for j in range(len(select_coord.index)-10):
-      #print select_coord['state-number'].iloc[j:j+10].groupby('state-number')
-      min_v = select_coord['state-number'].iloc[j]
-      #max_v = select_coord['state-number'].iloc[j+9]
-      test_value = 10 * (min_v + min_v+10-1) / 2
-      if select_coord['state-number'].iloc[j:j+10].sum()==test_value:
-         initial.append([i, min_v])
-         #print select_coord['state-number'].iloc[j:j+10]
-         #print "sum",select_coord['state-number'].iloc[j:j+10].sum(), test_value
-         break
-   print i, initial[i-start_coord][1]
-
-#find the minima for each coord_N: truncate states between initial[coord_N] and initial[coord_N+1]
-for i in range(start_coord, end_coord):
-   selected_1=coord_e[coord_e['surface-Au']==i]
-   try:
-     selected = selected_1[selected_1['state-number']<initial[i+1-start_coord][1]]
-   except:
-     selected = selected_1
-     pass
-   energy_min=selected['energy'].min()
-   try:
-      state_min=selected[selected['energy']==energy_min]['state-number'].iloc[0]
-      minima.append([state_min, energy_min])
-   except:
-      print selected['energy'].iloc(0)
-      break
-      
-
 current = os.getcwd()
 state_main_dir = current+'/states/'
+
+#read in coordination info
+#coord_e = pd.read_table(args[1], delimiter = r'\s+', names=['state-number', 'energy', 'coord-number', 'surface-Au'])
+coords_e={}
+with open(args[1]) as f:
+#   for line in f:
+#      fields = line.strip().split()
+#      coords_e[int()]
+   coords_e = dict([int(pair[0]), numpy.array([float(pair[1]), float(pair[2]), float(pair[3])])] for pair in [line.strip().split() for line in f])
 with open(state_main_dir+'state_table') as f:
    states_e = dict([int(pair[0]), float(pair[1])] for pair in [line.strip().split(None, 1) for line in f])
 dynamics = pd.read_table('dynamics.txt', delimiter = r'\s+', skiprows = [0,1], names=['step-number', 'reactant-id', 'process-id', 'product-id', 'step-time', 'total-time', 'barrier', 'rate', 'energy'])
+
 atoms = None
 
-overall_barrier=open('overall_barrier.dat','w')
-overall_barrier.write("%10s %6s%3s%-6s %12s %12s %12s %12s\n"%('transition', 'rs','-->', 'ps', 'rs_e', 'ts_e', 'fs_e', 't(akmc)'))
+output=open('e_coord_time.dat','w')
+#overall_barrier.write("%10s %6s%3s%-6s %12s %12s %12s %12s\n"%('transition', 'rs','-->', 'ps', 'rs_e', 'ts_e', 'fs_e', 't(akmc)'))
+output.write("%14s %12s %12s %4s\n"%('total-time','energy','coords','#ofAu'))
+for i in range(len(dynamics.index)):
+   try:
+      v = coords_e[dynamics['reactant-id'].iloc[i]]
+      output.write("%.6E %12.4f %12.4f %4d\n"%(dynamics['total-time'].iloc[i], v[0], v[1], v[2]))
+   except:
+      break
+
+"""
 for i in range(start_coord, end_coord-1):
    akmc_step=dynamics[dynamics['reactant-id']==minima[i-start_coord][0]]['step-number'].iloc[0]
-   #print 'akmc', akmc_step
    end=initial[i+1-start_coord][1]
 
    rs = []
@@ -112,8 +66,6 @@ for i in range(start_coord, end_coord-1):
    selected_dynamics=dynamics[dynamics['step-number']>=akmc_step]
    for j in range(len(selected_dynamics['step-number'])):
       rs_state=selected_dynamics['reactant-id'].iloc[j]
-#      if j==0:
-#         start_state = rs_state
       rs.append(rs_state)
       #print selected_dynamics['step-number'].iloc[j],":", rs
       proc_table=pd.read_table(state_main_dir+str(rs_state)+'/processtable', delimiter = r'\s+', skiprows = [0], names=['proc-id', 'saddle-e', 'prefactor', 'product-id', 'product-e', 'product-prefactor', 'barrier', 'rate', 'repeats'])
@@ -143,3 +95,4 @@ for i in range(start_coord, end_coord-1):
        log_structures.write(atoms)
        del atoms[surface_atom]
        log_cores.write(atoms)
+"""

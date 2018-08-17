@@ -3,7 +3,7 @@
 This code used to run a batch of MD jobs with lammps
 Pre-exiting files required: job.sub data_lammps PdAu.set in.lammps
 Example:
-run_md_jobs.py [Temperature] [numberOFjobs]
+run_md_jobs.py [Temperature] [start] [numberOFjobs]
 """
 
 import sys

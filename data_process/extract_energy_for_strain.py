@@ -52,18 +52,21 @@ def main():
     arg = sys.argv
     paras = readinputs(arg[1])
     print paras
-    boundary_atoms = numpy.array([float(field) for field in paras['boundary_atoms'].split()])
+    target_atom = int(paras['target_atom'])
+    #boundary_atoms = numpy.array([float(field) for field in paras['boundary_atoms'].split()])
     #numpy.array([0, 1, 2, 38, 39])
-    boundary = numpy.array([float(field) for field in paras['boundary'].split()])
+    #boundary = numpy.array([float(field) for field in paras['boundary'].split()])
     #([0, 4.407, 0])
-    strain = numpy.array([float(field) for field in paras['strain'].split()])
-    strain_direction = paras['strain_direction']
-    span = float(paras['span'])
-    active_space = ([field for field in paras['active_space'].split()])
+    #strain = numpy.array([float(field) for field in paras['strain'].split()])
+    image_numb = int(paras['image_numb'])
+    #strain_direction = paras['strain_direction']
+    #span = float(paras['span'])
+    #active_space = ([field for field in paras['active_space'].split()])
     #initialize strain for each direction
-    dx = numpy.zeros(len(strain))
-    dy = dx
-    dz = dx
+    #dx = numpy.zeros(len(strain))
+    #dy = dx
+    #dz = dx
+    """
     #set strain
     if strain_direction == 'x':
        dx = strain
@@ -74,25 +77,37 @@ def main():
     if strain_direction == 'z':
        dz = strain
        fixed_direction = 3
+    """
     #read geometry
-    output = open(strain_direction+'.dat', 'w')
+    #file_pre = os.getcwd().split('/')[-1]
+    output = open('stain_e'+'.dat', 'w')
     #move atoms based on the given strain and submit jobs
-    for i in range (0,len(strain)):
-        if strain[i]<0:
-           job_i = './'+'c_'+str(abs(strain[i]))
-        else:
-           job_i = './'+str(strain[i])
+    int_s = read('./0/CONTCAR', index=0)
+    final_s = read('./6/CONTCAR', index=0)
+    dist = numpy.linalg.norm(numpy.array(int_s[target_atom].position - final_s[target_atom].position))
+    print dist
+    dr = dist/float(image_numb+1)
+    for i in range (0,image_numb+2):
+        #if strain[i]<0:
+        #   job_i = './'+'c_'+str(abs(strain[i]))
+        #else:
+        #   job_i = './'+str(strain[i])
+        job_i = str(i)
         grep_energy = "grep 'energy  without entropy' "+job_i + "/OUTCAR" +" |tail -n 1"
-        check_completion = "grep 'reached required accuracy' "+job_i + "/OUTCAR" +" |tail -n 1"
-        p =subprocess.Popen(check_completion, shell=True, stdout=subprocess.PIPE)
+        print grep_energy
+        #check_completion = "grep 'reached required accuracy' "+job_i + "/OUTCAR" +" |tail -n 1"
+        fetch_force = "grep FORCES: "+job_i+"/OUTCAR"+" |tail -n 1"
+        p =subprocess.Popen(fetch_force, shell=True, stdout=subprocess.PIPE)
         results = p.communicate()
-        if 'reached' in results[0].split()[0]:
-           p =subprocess.Popen(grep_energy, shell=True, stdout=subprocess.PIPE)
-           results = p.communicate()
-           output.write("%6.5f %s\n"%(strain[i],results[0].split()[6]))
-           continue
-        else:
-           output.write("%6.5f %s\n"%(strain[i],'job not finished'))
+        print results[0]
+        force = results[0].split('RMS')[1].split()[0]
+        #if 'reached' in results[0].split()[0]:
+        p =subprocess.Popen(grep_energy, shell=True, stdout=subprocess.PIPE)
+        results = p.communicate()
+        output.write("%6.5f %s %s\n"%(float(i)*dr,results[0].split()[6],force))
+        #continue
+        #else:
+        #   output.write("%6.5f %s\n"%(strain[i],'job not finished'))
 
 if __name__ == '__main__':
     main()

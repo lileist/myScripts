@@ -13,13 +13,14 @@ import glob
 import ast
 import pandas as pd
 from decimal import Decimal
-from pele.storage import Database
-from pele.landscape import database2graph
-from pele.utils.disconnectivity_graph import DisconnectivityGraph
+#from pele.storage import Database
+#from pele.landscape import database2graph
+#from pele.utils.disconnectivity_graph import DisconnectivityGraph
 import numpy
 from ase.neighborlist import neighbor_list as nl
 from ase.io import read, write
 from ase.io.trajectory import Trajectory
+import collections
 
 def get_coord(atoms):
     surf_Au = 0
@@ -44,44 +45,67 @@ def get_coord(atoms):
 args = sys.argv
 coord_e = pd.read_table(args[1], delimiter = r'\s+', skiprows=[0], names=['state-number', 'energy', 'coord-number', 'surface-Au'])
 
-minima = []
-initial = []
-start_coord = int(args[2])
-end_coord = int(args[3])
+minima = {}
+initial = {}
+
+try:
+  start_coord = int(args[2])
+except:
+  start_coord = coord_e['surface-Au'].min()
+try:
+  end_coord = int(args[3])
+except:
+  end_coord = coord_e['surface-Au'].max()
 
 #find start point for each coord_N
-for i in range(start_coord, end_coord):
+for i in range(start_coord, end_coord+1):
    select_coord_o = coord_e[coord_e['surface-Au']>=i]
+   if select_coord_o['surface-Au'].min()!=i:
+      print i, "does not exist."
+      continue
    try:
-      select_coord = select_coord_o[select_coord_o['state-number']>initial[i-1-start_coord][1]]
+      select_coord = select_coord_o[select_coord_o['state-number']>initial[i-1][1]]
    except:
       select_coord = select_coord_o
-      #initial.append([i, select_coord['state-number'].iloc[0]])
+      pass
    #make sure the 10 consecutive states have coord_N=i
-   for j in range(len(select_coord.index)-10):
-      #print select_coord['state-number'].iloc[j:j+10].groupby('state-number')
-      min_v = select_coord['state-number'].iloc[j]
-      #max_v = select_coord['state-number'].iloc[j+9]
-      test_value = 10 * (min_v + min_v+10-1) / 2
-      if select_coord['state-number'].iloc[j:j+10].sum()==test_value:
-         initial.append([i, min_v])
-         #print select_coord['state-number'].iloc[j:j+10]
-         #print "sum",select_coord['state-number'].iloc[j:j+10].sum(), test_value
-         break
-   print i, initial[i-start_coord][1]
+   #corner situation:
+   if len(select_coord.index)-10 < 0:
+      print len(select_coord.index), "less than 10"
+      initial[i]=[i, select_coord['state-number'].iloc[0]]
+   else:
+      for j in range(len(select_coord.index)-9):
+         #print select_coord['state-number'].iloc[j:j+10].groupby('state-number')
+         min_v = select_coord['state-number'].iloc[j]
+         test_value = 10 * (min_v + min_v+10-1) / 2
+         if select_coord['state-number'].iloc[j:j+10].sum()==test_value:
+            initial[i]=[i, min_v]
+            #print select_coord['state-number'].iloc[j:j+10]
+            #print "sum",select_coord['state-number'].iloc[j:j+10].sum(), test_value
+            break
+   print i, initial[i][1]
 
+order_dict = collections.OrderedDict(sorted(initial.items()))
+initial = order_dict
+keylist = sorted(initial.keys())
 #find the minima for each coord_N: truncate states between initial[coord_N] and initial[coord_N+1]
-for i in range(start_coord, end_coord):
-   selected_1=coord_e[coord_e['surface-Au']==i]
+for i in range(len(keylist)):
+#for i in range(start_coord, end_coord):
+   print keylist[i]
+   selected_1=coord_e[coord_e['surface-Au']==keylist[i]]
+   #deal with situation where more Au atoms come to surface simutaneously
+   if selected_1.empty:
+      print keylist[i], "does not exist."
+      continue
    try:
-     selected = selected_1[selected_1['state-number']<initial[i+1-start_coord][1]]
+     selected = selected_1[selected_1['state-number']<initial[keylist[i+1]][1]]
    except:
      selected = selected_1
      pass
    energy_min=selected['energy'].min()
    try:
       state_min=selected[selected['energy']==energy_min]['state-number'].iloc[0]
-      minima.append([state_min, energy_min])
+      minima[keylist[i]]=[state_min, energy_min]
    except:
       print selected['energy'].iloc(0)
       break
@@ -96,24 +120,31 @@ atoms = None
 
 overall_barrier=open('overall_barrier.dat','w')
 overall_barrier.write("%10s %6s%3s%-6s %12s %12s %12s %12s\n"%('transition', 'rs','-->', 'ps', 'rs_e', 'ts_e', 'fs_e', 't(akmc)'))
-for i in range(start_coord, end_coord-1):
-   akmc_step=dynamics[dynamics['reactant-id']==minima[i-start_coord][0]]['step-number'].iloc[0]
-   #print 'akmc', akmc_step
-   end=initial[i+1-start_coord][1]
+
+
+for i in range(len(keylist)-1):
+#for i in range(start_coord, end_coord):
+   #fetch start point from minima and end point from initial
+   start_coord = keylist[i]
+   end_coord = keylist[i+1]
+   akmc_step=dynamics[dynamics['reactant-id']==minima[start_coord][0]]['step-number'].iloc[0]
+   end=initial[end_coord][1]
 
    rs = []
    barrier = []
-   filename = current+'/'+str(i)+'TO'+str(i+1)
+
+   #prepare output files
+   filename = current+'/'+str(start_coord)+'TO'+str(end_coord)
    output = open(filename+'.dat','w')
    log_structures = Trajectory(filename+'.traj',
                             'w', atoms)
    log_cores = Trajectory(filename+'_cores.traj',
                             'w', atoms)
+
+   #find path from start state to end state
    selected_dynamics=dynamics[dynamics['step-number']>=akmc_step]
    for j in range(len(selected_dynamics['step-number'])):
       rs_state=selected_dynamics['reactant-id'].iloc[j]
-#      if j==0:
-#         start_state = rs_state
       rs.append(rs_state)
       #print selected_dynamics['step-number'].iloc[j],":", rs
       proc_table=pd.read_table(state_main_dir+str(rs_state)+'/processtable', delimiter = r'\s+', skiprows = [0], names=['proc-id', 'saddle-e', 'prefactor', 'product-id', 'product-e', 'product-prefactor', 'barrier', 'rate', 'repeats'])
@@ -129,7 +160,9 @@ for i in range(start_coord, end_coord-1):
          t_akmc = selected_dynamics['total-time'].iloc[j]
          #print "reached", end
          break
-   overall_barrier.write("%10s %6d%3s%-6d %12.4f %12.4f %12.4f %.6E\n"%(str(i)+'-->'+str(i+1), rs_state,'-->', end, minima[i-start_coord][1], max(barrier)-minima[i-start_coord][1], states_e[end], Decimal(str(t_akmc))))
+   overall_barrier.write("%10s %6d%3s%-6d %12.4f %12.4f %12.4f %.6E\n"%(str(start_coord)+'-->'+str(end_coord), rs_state,'-->', end, minima[start_coord][1], max(barrier)-minima[start_coord][1], states_e[end], Decimal(str(t_akmc))))
+
+   #find and output trajectories and energy profile for each transition
    for j in range(len(rs)):
        state_n = rs[j]
        try:

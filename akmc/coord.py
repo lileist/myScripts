@@ -10,9 +10,9 @@ import glob
 import ast
 import pandas as pd
 #import matplotlib.pyplot as plt
-from pele.storage import Database
-from pele.landscape import database2graph
-from pele.utils.disconnectivity_graph import DisconnectivityGraph
+#from pele.storage import Database
+#from pele.landscape import database2graph
+#from pele.utils.disconnectivity_graph import DisconnectivityGraph
 import numpy
 from ase.neighborlist import neighbor_list as nl
 from ase.io import read

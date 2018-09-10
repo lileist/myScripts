@@ -78,10 +78,15 @@ if args.start is not None and args.end is not None:
 if args.states:
    log_structures = Trajectory(str(args.states[0])+'_'+str(args.states[-1])+'.traj',
                             'w', atoms)
+   log_cores = Trajectory(str(args.states[0])+'_'+str(args.states[-1])+'_cores.traj',
+                            'w', atoms)
    for dir in args.states:
        os.chdir(state_main_dir+str(dir))
        atoms = read('reactant.con',index=0)
+       Au_coord, surface_Au, surface_atom = get_coord(atoms)
        log_structures.write(atoms)
+       del atoms[surface_atom]
+       log_cores.write(atoms)
 
 if args.akmc_step is not None and args.end is not None:
    rs = []

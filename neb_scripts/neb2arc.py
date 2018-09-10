@@ -58,17 +58,19 @@ def log_atoms(atoms):
         outfile.write("end\n")
         
 def main():
+#   parser = argparse.ArgumentParser()
+#   parser.add_argument('--states', type=int, nargs='+', metavar='StateNumbers', 
+#          default=None,
+#          help='States that used to constructe trajectories')
+#   args = parser.parse_args()
     arg = sys.argv
-    num_image = int(arg[1])
+    fileformat = arg[1]
+    num_image = int(arg[2])
     cwd = os.getcwd()
     if num_image is None:
         print "num_image is empty"
     atoms = []
-    if len(arg)>3:
-       vasp = False
-    else:
-       vasp = True
-    if vasp:
+    if fileformat=='vasp':
        for image in range(0, num_image):
             if image==0 or image == num_image-1:
                target_file = 'POSCAR'
@@ -84,7 +86,7 @@ def main():
             print(src+' --> '+dst)
             p1 = read(filename=arg[2], index=0, format = 'vasp')
             atoms.append(p1)
-    else:
+    if fileformat=='xyz':
        for image in range(0, num_image+2):
            if image==0:
               p1 = read(filename=arg[2], index=0, format = 'xyz')
@@ -93,6 +95,13 @@ def main():
            else:
               p1 = read(filename=str(image)+'.CON', index=0, format = 'vasp')
            atoms.append(p1)
+    if fileformat=='traj':
+       p1=read(filename=arg[3], index=':')
+       atoms = p1
+    if fileformat=='list':
+       for i in range(3,len(arg)):
+          atoms.append(read(filename=arg[i]))
+    #atoms.append(read(filename='./states/2278/reactant.con'))
     log_atoms(atoms)
 if __name__ == '__main__':
     main()

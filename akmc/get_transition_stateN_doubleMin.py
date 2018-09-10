@@ -47,12 +47,11 @@ coord_e = pd.read_table(args[1], delimiter = r'\s+', skiprows=[0], names=['state
 
 minima = {}
 initial = {}
-n_consecutive = 4
 
 try:
   start_coord = int(args[2])
 except:
-  start_coord = coord_e['surface-Au'].iloc[0]
+  start_coord = coord_e['surface-Au'].min()
 try:
   end_coord = int(args[3])
 except:
@@ -71,15 +70,15 @@ for i in range(start_coord, end_coord+1):
       pass
    #make sure the 10 consecutive states have coord_N=i
    #corner situation:
-   if len(select_coord.index)-n_consecutive < 0:
+   if len(select_coord.index)-10 < 0:
       print len(select_coord.index), "less than 10"
       initial[i]=[i, select_coord['state-number'].iloc[0]]
    else:
-      for j in range(len(select_coord.index)-n_consecutive+1):
+      for j in range(len(select_coord.index)-9):
          #print select_coord['state-number'].iloc[j:j+10].groupby('state-number')
          min_v = select_coord['state-number'].iloc[j]
-         test_value = n_consecutive * (min_v + min_v+n_consecutive-1) / 2
-         if select_coord['state-number'].iloc[j:j+n_consecutive].sum()==test_value:
+         test_value = 10 * (min_v + min_v+10-1) / 2
+         if select_coord['state-number'].iloc[j:j+10].sum()==test_value:
             initial[i]=[i, min_v]
             #print select_coord['state-number'].iloc[j:j+10]
             #print "sum",select_coord['state-number'].iloc[j:j+10].sum(), test_value
@@ -110,7 +109,6 @@ for i in range(len(keylist)):
    except:
       print selected['energy'].iloc(0)
       break
-   print keylist[i], state_min, energy_min
       
 
 current = os.getcwd()
@@ -130,7 +128,7 @@ for i in range(len(keylist)-1):
    start_coord = keylist[i]
    end_coord = keylist[i+1]
    akmc_step=dynamics[dynamics['reactant-id']==minima[start_coord][0]]['step-number'].iloc[0]
-   end=initial[end_coord][1]
+   end=minima[end_coord][1]
 
    rs = []
    barrier = []
@@ -163,7 +161,7 @@ for i in range(len(keylist)-1):
          #print "reached", end
          break
    overall_barrier.write("%10s %6d%3s%-6d %12.4f %12.4f %12.4f %.6E\n"%(str(start_coord)+'-->'+str(end_coord), rs_state,'-->', end, minima[start_coord][1], max(barrier)-minima[start_coord][1], states_e[end], Decimal(str(t_akmc))))
-
+   overall_barrier.flush()
    #find and output trajectories and energy profile for each transition
    for j in range(len(rs)):
        state_n = rs[j]
@@ -178,3 +176,4 @@ for i in range(len(keylist)-1):
        log_structures.write(atoms)
        del atoms[surface_atom]
        log_cores.write(atoms)
+   output.flush()

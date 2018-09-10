@@ -33,9 +33,9 @@ def readinputs(filename):
 def get_coord(atoms):
     surf_Au = 0
     i = nl('i', atoms,
-                     {('Au','Au'):3.4,
-                     ('Au','Pd'):3.4,
-                     ('Pd','Pd'):3.4
+                     {('Au','Au'):3.2,
+                     ('Au','Pd'):3.2,
+                     ('Pd','Pd'):3.2
                      })
     coord = numpy.bincount(i)
     index_Au = [ atom.index for atom in atoms if atom.symbol=='Au']
@@ -43,7 +43,7 @@ def get_coord(atoms):
     for i in range(len(coord)):
        if i in index_Au:
           Au_coord += coord[i]
-          if coord[i] < 10:
+          if coord[i] < 11:
             surf_Au += 1
     return float(Au_coord)/float(len(index_Au)),surf_Au 
 
@@ -55,6 +55,8 @@ if len(arg) > 1:
       print "reading coords"
       lines = coord_file.readlines()
       for line in lines:
+         if 'state' in line:
+            continue
          fields=line.split()
          state_coords[int(fields[0])]=numpy.array([float(fields[1]), float(fields[2]), float(fields[3])])
       coord_file.close()

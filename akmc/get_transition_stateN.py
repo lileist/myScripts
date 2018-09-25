@@ -57,7 +57,7 @@ try:
   end_coord = int(args[3])
 except:
   end_coord = coord_e['surface-Au'].max()
-
+print end_coord
 #find start point for each coord_N
 for i in range(start_coord, end_coord+1):
    select_coord_o = coord_e[coord_e['surface-Au']>=i]

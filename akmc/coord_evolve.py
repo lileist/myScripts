@@ -45,8 +45,10 @@ output=open('e_coord_time.dat','w')
 output.write("%14s %12s %12s %4s\n"%('total-time','energy','coords','#ofAu'))
 for i in range(len(dynamics.index)):
    try:
-      v = coords_e[dynamics['reactant-id'].iloc[i]]
-      output.write("%.6E %12.4f %12.4f %4d\n"%(dynamics['total-time'].iloc[i], v[0], v[1], v[2]))
+      v_r = coords_e[dynamics['reactant-id'].iloc[i]]
+      v_p = coords_e[dynamics['product-id'].iloc[i]]
+      output.write("%.6E %12.4f %12.4f %4d\n"%(dynamics['total-time'].iloc[i], v_r[0], v_r[1], v_r[2]))
+      output.write("%.6E %12.4f %12.4f %4d\n"%(dynamics['total-time'].iloc[i], v_p[0], v_p[1], v_p[2]))
    except:
       break
 

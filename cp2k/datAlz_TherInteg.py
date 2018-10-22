@@ -93,8 +93,6 @@ def find_distance(filename, index_1, index_2,max_numb):
 def main():
     arg = sys.argv
     paras = readinputs(arg[1])
-    cp2k_inp = open(paras['cp2k_inp'], 'r')
-    lines = cp2k_inp.readlines()
     distances=paras['distance'].split()
     output = open('freeEnergy.dat','w')
     dx = float(paras['dx'])
@@ -103,8 +101,16 @@ def main():
     md_steps = []
     atom_distance = {}
     std_data = open('avg_std.dat', 'w')
+    force_file = None
     for distance in distances:
-        input_force = open(distance+'/'+arg[2], 'r')
+        if force_file is None:
+           cp2k_inp = open(distance+'/'+paras['cp2k_inp'], 'r')
+           lines = cp2k_inp.readlines()
+           for line in lines:
+               if 'PROJECT_NAME' in line:
+                  force_file = line.split()[1]+'-1.LagrangeMultLog'
+                  break
+        input_force = open(distance+'/'+force_file, 'r')
         total_force = 0
         numb_force = 0
         numb_line = 0
@@ -124,7 +130,10 @@ def main():
                total_force += float(line.split()[3])
                numb_force += 1
 #        avg_force[distance] = total_force/float(numb_force)
-        avg_force.append(total_force/float(numb_force))
+        if numb_force ==0:
+           print distance, "too short simulaiton"
+        else:
+           avg_force.append(total_force/float(numb_force))
         md_steps.append(numb_force)
         input_force.close()
     
@@ -141,7 +150,7 @@ def main():
         else:
            #free_energy.append(simpson(avg_force, float(distance[i]), float(distance[))
            free_energy.append((avg_force[i]+avg_force[i-1])*27.21*(float(distances[i])-float(distances[i-1]))/(2*0.529)+free_energy[i-1]) 
-        output.write("%s %12.8f %12.8f %d\n"%(distances[i], avg_force[i], free_energy[i], md_steps[i]))
+        output.write("%s %12.8f %12.8f %d\n"%(distances[i], avg_force[i], -free_energy[i], md_steps[i]))
 if __name__ == '__main__':
     main()
     

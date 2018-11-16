@@ -112,6 +112,7 @@ def main():
                   break
         input_force = open(distance+'/'+force_file, 'r')
         total_force = 0
+        shake_numb = 0
         numb_force = 0
         numb_line = 0
         lines = input_force.readlines()
@@ -123,12 +124,14 @@ def main():
            else:
               std_data.write("%s %15.6f %15.6f\n"%(distance, numpy.average(atom_distance[distance][int(paras['stablize_step']):int(paras['max_step'])]),numpy.std(atom_distance[distance][int(paras['stablize_step']):int(paras['max_step'])])))
         for line in lines:
-            numb_line += 1
-            if numb_line < 2*int(paras['stablize_step']) or numb_line >2*int(paras['max_step']):
-               continue
+#            numb_line += 1
             if 'Shake  Lagrangian' in line:
-               total_force += float(line.split()[3])
-               numb_force += 1
+               shake_numb += 1
+               if shake_numb < int(paras['stablize_step']) or shake_numb > int(paras['max_step']):
+                  continue
+               else:
+                  total_force += float(line.split()[3])
+                  numb_force += 1
 #        avg_force[distance] = total_force/float(numb_force)
         if numb_force ==0:
            print distance, "too short simulaiton"

@@ -80,7 +80,8 @@ def interpolate(start_atom, end_atom, n):
     x = start_atom.x
     for i in range(n-1):
         x_new = x+(n+1)*dx
-        new_atoms.append(start_atom.position=(x_new, k*x_new+b, z))
+        start_atom.position=(x_new, k*x_new+b, z)
+        new_atoms.append(start_atom)
     return new_atoms.append(end_atom)
 
 def main():
@@ -114,6 +115,7 @@ def main():
     fixed_atoms = constrained_indices(p1)
     working_dir = os.getcwd()
     #move atoms based on the given strain and submit jobs
+    stretched = open('streched.dat','w')
     for i in range (0,len(strain)):
         p2 = p1.copy()
         for atom in p2:
@@ -126,9 +128,10 @@ def main():
             #move other atoms. 
             atom.position = tuple(boundary + (numpy.array(atom.position) - boundary)*numpy.array([1+dx[i],1+dy[i],1+dz[i]]))
         if strain[i]<0:
-           job_i = working_dir+'/'+'c_'+str(abs(strain[i]))
+           job_i = working_dir+'/'+'c_'+str(i)
         else:
-           job_i = working_dir+'/'+str(strain[i])
+           job_i = working_dir+'/'+str(i)
+        stretched.write("%4d %12.8f \n"%(i, span*strain[i]))
         make_dir(job_i)   
         write(filename=job_i+'/POSCAR', images=p2, format='vasp')
         fix_atoms(filename=job_i+'/POSCAR', fixed_atoms = boundary_atoms, fixed_direction=fixed_direction)

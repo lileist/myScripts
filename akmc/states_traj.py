@@ -1,9 +1,9 @@
+#!/usr/bin/env python
 """
 This code is used to construct trajectory file with states
 for help:
 states_traj.py --h
 """
-#!/usr/bin/env python
 
 import sys
 import os
@@ -33,6 +33,13 @@ def get_coord(atoms):
           if coord[i] < 10:
             surf_Au += 1
     return float(Au_coord)/float(len(index_Au)),surf_Au,surface_atom
+
+def log_atoms(f, atoms):
+    natom = len(atoms)
+    f.write("%4d\n"%(natom))
+    f.write("\n")
+    for atom in atoms:
+      f.write("%4s  %12.8f %12.8f %12.8f\n"%(atom.symbol, atom.x, atom.y, atom.z))
 
 current = os.getcwd()
 state_main_dir = current+"/states/"
@@ -91,6 +98,7 @@ if args.states:
 if args.akmc_step is not None and args.end is not None:
    rs = []
    barrier = []
+   ttime = []
    output = open(str(args.akmc_step)+'.dat','w')
    log_structures = Trajectory(str(args.akmc_step)+'.traj',
                             'w', atoms)
@@ -98,18 +106,23 @@ if args.akmc_step is not None and args.end is not None:
                             'w', atoms)
    dynamics = pd.read_table('dynamics.txt', delimiter = r'\s+', skiprows = [0,1], names=['step-number', 'reactant-id', 'process-id', 'product-id', 'step-time', 'total-time', 'barrier', 'rate', 'energy'])
    selected_dynamics=dynamics[dynamics['step-number']>=args.akmc_step]
+   state_coord = pd.read_table('coord_e_all.dat', delimiter = r'\s+', skiprows = [0], names=['state','energy','coords','#ofAu'])
    for i in range(len(selected_dynamics['step-number'])):
       rs.append(selected_dynamics['reactant-id'].iloc[i])
       barrier.append(selected_dynamics['barrier'].iloc[i])
+      ttime.append(selected_dynamics['total-time'].iloc[i])
       try:
         index = rs.index(selected_dynamics['product-id'].iloc[i])
         del rs[index:]
         del barrier[index:]
+        del ttime[index:]
       except:
         pass
       if selected_dynamics['product-id'].iloc[i]==args.end:
          rs.append(selected_dynamics['product-id'].iloc[i])
          break
+   log_xyz = open('movie.xyz','w')
+   cm_o=None
    for i in range(len(rs)):
        state_n = rs[i]
        try:
@@ -121,6 +134,11 @@ if args.akmc_step is not None and args.end is not None:
        atoms = read('reactant.con',index=0)
        Au_coord, surface_Au, surface_atom = get_coord(atoms)
        log_structures.write(atoms)
+       if cm_o is None:
+         cm_o = atoms.get_center_of_mass()
+       cm = atoms.get_center_of_mass()
+       atoms.translate(cm_o - cm)
+       log_atoms(log_xyz, atoms)
        del atoms[surface_atom]
        log_cores.write(atoms)
-       print state_n, float(i), states_e[state_n], Au_coord, surface_Au
+       print state_n, float(i), states_e[state_n], Au_coord, surface_Au, ttime[i]

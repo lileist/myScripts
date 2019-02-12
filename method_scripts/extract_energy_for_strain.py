@@ -37,27 +37,6 @@ class cd:
     def __exit__(self, etype, value, traceback):
         os.chdir(self.savedPath)
 
-
-def make_dir(path):
-    try:
-        os.makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-           raise
-
-def fix_atoms(filename, fixed_atoms=None, fixed_direction=2):
-    posfile = open(filename, 'r')
-    lines= posfile.readlines()
-    posfile.close()
-    output = open(filename, 'w')
-    i=0
-    for line in lines:
-       if i-8 in fixed_atoms:
-          fields = line.split()
-          fields[2+fixed_direction] = 'F'
-          line=' '+'  '.join(fields)+'\n'
-       output.write("%s"%(line))
-       i+=1
 def readinputs(filename):
     f=open(filename, 'r')
     parameters = {}
@@ -68,21 +47,6 @@ def readinputs(filename):
       fields = line.split('=')
       parameters[fields[0].strip()]=fields[1].replace("\n","").strip()
     return parameters
-
-def interpolate(start_atom, end_atom, n):
-    #find slop and intercept
-    k = (end_atom.y - start_atom.y)/(end_atom.x - start_atom.x)
-    b = end_atom.y - k * end_atom.x
-    dx = (end_atom.x - start_atom.x)/float(n)
-    new_atoms=[]
-    new_atoms.append(start_atom)
-    z = start_atom.z
-    x = start_atom.x
-    for i in range(n-1):
-        x_new = x+(n+1)*dx
-        start_atom.position=(x_new, k*x_new+b, z)
-        new_atoms.append(start_atom)
-    return new_atoms.append(end_atom)
 
 def main():
     arg = sys.argv
@@ -111,38 +75,22 @@ def main():
        dz = strain
        fixed_direction = 3
     #read geometry
-    p1 = read(filename=paras['structure_file'], index=0, format = 'vasp')
-    fixed_atoms = constrained_indices(p1)
-    working_dir = os.getcwd()
+    output = open(strain_direction+'.dat', 'w')
     #move atoms based on the given strain and submit jobs
-    stretched = open('streched.dat','w')
     for i in range (0,len(strain)):
-        p2 = p1.copy()
-        for atom in p2:
-            if atom.index in fixed_atoms or atom.symbol not in active_space:
-               continue
-            #move atoms at the boundary. Keep the original shape of the boundary
-            if atom.index in boundary_atoms:
-               atom.position = atom.position +(span*dx[i],span*dy[i], span*dz[i])
-               continue
-            #move other atoms. 
-            #atom.position = tuple(boundary + (numpy.array(atom.position) - boundary)*numpy.array([1+dx[i],1+dy[i],1+dz[i]]))
         if strain[i]<0:
-           job_i = working_dir+'/'+'c_'+str(i)
+           job_i = './'+'c_'+str(abs(strain[i]))
         else:
-           job_i = working_dir+'/'+str(i)
-        stretched.write("%4d %12.8f \n"%(i, span*strain[i]))
-        make_dir(job_i)   
-        write(filename=job_i+'/POSCAR', images=p2, format='vasp')
-        fix_atoms(filename=job_i+'/POSCAR', fixed_atoms = boundary_atoms, fixed_direction=fixed_direction)
-        os.system('cp POTCAR '+job_i)
-        os.system('cp KPOINTS '+job_i)
-        os.system('cp INCAR '+job_i)
-        os.system('cp '+paras['job_submit_script']+' '+job_i)
-        with cd(job_i):
-             os.system(paras['job_submit_cmd']+' '+paras['job_submit_script'])
-             print os.getcwd(),'is submitted'
-        print 'Back to directory',os.getcwd()
+           job_i = './'+str(i)
+        #grep_energy = "grep 'energy  without entropy' "+job_i + "/OUTCAR" +" |tail -n 1"
+        grep_energy = "grep 'free  energy   TOTEN' "+job_i + "/OUTCAR" +" |tail -n 1"
+        grep_forces = "grep 'FORCES: max atom, RMS' "+job_i + "/OUTCAR" +" |tail -n 1"
+        p_1 = subprocess.Popen(grep_energy, shell=True, stdout=subprocess.PIPE)
+        results = p_1.communicate()
+        p_2 =subprocess.Popen(grep_forces, shell=True, stdout=subprocess.PIPE)
+        results_2 = p_2.communicate()
+        #output.write("%6.5f %s\n"%(strain[i],results[0].split()[6]))
+        output.write("%6.5f %s  %s\n"%(strain[i],results[0].split()[4], results_2[0].split()[4]))
 if __name__ == '__main__':
     main()
     

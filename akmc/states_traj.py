@@ -106,11 +106,14 @@ if args.akmc_step is not None and args.end is not None:
                             'w', atoms)
    dynamics = pd.read_table('dynamics.txt', delimiter = r'\s+', skiprows = [0,1], names=['step-number', 'reactant-id', 'process-id', 'product-id', 'step-time', 'total-time', 'barrier', 'rate', 'energy'])
    selected_dynamics=dynamics[dynamics['step-number']>=args.akmc_step]
-   state_coord = pd.read_table('coord_e_all.dat', delimiter = r'\s+', skiprows = [0], names=['state','energy','coords','#ofAu'])
+   #state_coord = pd.read_table('coord_e_all.dat', delimiter = r'\s+', skiprows = [0], names=['state','energy','coords','#ofAu'])
    for i in range(len(selected_dynamics['step-number'])):
       rs.append(selected_dynamics['reactant-id'].iloc[i])
       barrier.append(selected_dynamics['barrier'].iloc[i])
-      ttime.append(selected_dynamics['total-time'].iloc[i])
+      if i==0:
+         ttime.append(0)
+      else:
+         ttime.append(selected_dynamics['total-time'].iloc[i-1])
       try:
         index = rs.index(selected_dynamics['product-id'].iloc[i])
         del rs[index:]
@@ -120,6 +123,7 @@ if args.akmc_step is not None and args.end is not None:
         pass
       if selected_dynamics['product-id'].iloc[i]==args.end:
          rs.append(selected_dynamics['product-id'].iloc[i])
+         ttime.append(selected_dynamics['total-time'].iloc[i])
          break
    log_xyz = open('movie.xyz','w')
    cm_o=None

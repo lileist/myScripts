@@ -6,8 +6,8 @@
 set xtics font ",16"
 set ytics font ",16"
 set key top center
-set xrange [-58:-40]
-set yrange [-58:-40]
+set xrange [-40:45]
+set yrange [-40:45]
 set size 0.95,0.95
 set key font ",14" spacing 1
 set rmargin 4

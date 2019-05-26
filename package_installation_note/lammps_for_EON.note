@@ -1,0 +1,33 @@
+#intallation notes for lammps
+
+#for eon application:
+#MEAM:
+cd lib/MEAM
+rm *.o *.a
+make -f Makefile.gfortran #generate libmeam.a
+#reax:
+cd lib/reax
+rm *.o *.a
+make -f Makefile.gfortran #generate libreax.a
+
+cd src/STUBS/
+make clean #if previous compilation exists
+make
+cd .. #come to 'src' directory
+
+make no-manybody #avoid previously installed manybody package. NOT SURE if necessary
+make yes-manybody
+make yes-meam
+make yes-reax
+
+make mpi mode=lib  #build mpi lib-version 
+
+#ERROR:
+#1../pair_eam_opt.cpp(84): error: expected a "; "
+    https://lammps.sandia.gov/threads/msg61871.html
+    this has been discussed on this very list just a few days ago.
+    you must be using the intel compiler on the centos 6 machine, while the centos 7 machine likely is using the GNU compiler.
+    for the intel compiler you should add "-restrict" to the CCFLAGS in your makefile, and the compilation should no longer throw the quoted error.
+    NOTE: Makefiles are under directory: src/MAKE
+#2..ld: -lompstub error
+    http://qpeng.org/code/easy_installation_of_lammps_2012.txt

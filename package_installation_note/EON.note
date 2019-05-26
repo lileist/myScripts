@@ -1,0 +1,46 @@
+Compiling Environment:
+   icpc (ICC) 18.0.2 20180210
+   g++ (GCC) 5.5.0
+   /usr/local/intel/compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64_lin
+   /usr/local/openmpi/openmpi-2.1.5_intel/bin
+   #LD_LIBRARY_PATH
+   /usr/local/openmpi/openmpi-2.1.5_intel/lib:/opt/gridengine/lib/lx-amd64:/usr/local/lib:/usr/local/lib64:/usr/lib64:/usr/local/openmpi/openmpi-1.10.2_intel/lib:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64_lin:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64_lin:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/mpi/intel64/lib:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/mpi/mic/lib:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/ipp/lib/intel64:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/compiler/lib/intel64_lin:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/mkl/lib/intel64_lin:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/tbb/lib/intel64/gcc4.7:/usr/local/intel/debugger_2018/iga/lib:/usr/local/intel/debugger_2018/libipt/intel64/lib:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/daal/lib/intel64_lin:/usr/local/intel/compilers_and_libraries_2018.2.199/linux/daal/../tbb/lib/intel64_lin/gcc4.4
+ERROR MESSAGE:
+    MPIPot.cpp(47): error: name followed by "::" must be a class or namespace name
+          MPI::COMM_WORLD.Send(&intn,      1, MPI::INT,   potentialRank, 0);
+
+    Problem link:
+       https://software.intel.com/en-us/forums/intel-c-compiler/topic/565143
+       https://github.com/paboyle/Grid/issues/26
+
+======================================================================================
+Compiled with openmpi1.0.2 on Fri
+
+I am able to run the mpi version but then it dies near the start when running explorer.get_minmodexplorer().
+
+I got the error at the line "from mpi4py.MPI import COMM_WORLD” (in communicator.py)
+It is very strange. The command runs fine in ‘python’ shell. I also checked the python environment variable when running the code with 'print os.environ['PYTHONPATH'].split(os.pathsep)'. It is same to what I have in the shell.
+
+Hi Dr. Henkelman,
+
+The following are what I just tried. I was also using openmpi 2.0 but forgot the reason. I may give a try.
+
+I tried to import mpi4py and then use 'self.comm = mpi4py.MPI.COMM_WORLD’.
+The error is:
+  File "/home/leili/code/eon/eon/communicator.py", line 262, in __init__
+    self.comm = mpi4py.MPI.COMM_WORLD
+AttributeError: 'module' object has no attribute ‘MPI'
+
+Then I built my own mpi4py and got:
+  File "/home/leili/code/eon/eon/communicator.py", line 262, in __init__
+    self.comm = mpi4py.MPI.COMM_WORLD
+AttributeError: 'module' object has no attribute 'MPI'
+Error in sys.excepthook:
+Traceback (most recent call last):
+  File "/home/leili/code/eon/eon/config.py", line 230, in mpiexcepthook
+    from mpi4py import MPI
+ImportError: /home/leili/.local/lib/python2.7/site-packages/mpi4py/MPI.so: undefined symbol: PyUnicodeUCS4_DecodeUTF8
+
+Possible reason:
+   https://github.com/rkern/line_profiler/issues/41
+   https://stackoverflow.com/questions/16871799/trying-to-import-a-module-undefined-symbol-pyunicodeucs4-decodeutf8

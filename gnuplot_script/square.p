@@ -3,12 +3,12 @@
 #set output 'output.png'
 
 #set term x11 font ",20"
-set xtics font ",16"
-set ytics font ",16"
 set key top center
-set xrange [-58:-40]
-set yrange [-58:-40]
-set size 0.95,0.95
-set key font ",14" spacing 1
-set rmargin 4
+set xrange [-58:-46]
+set yrange [-58:-46]
+set size 0.8,0.8
+set key font ",20" spacing 3
+set bmargin 4
 set size square
+set xtics font ",20"
+set ytics font ",20"

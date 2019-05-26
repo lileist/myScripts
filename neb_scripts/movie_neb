@@ -14,7 +14,7 @@ def main():
     num_image = int(arg[1])
     cwd = os.getcwd()
     if num_image is None:
-        print "num_image is empty"
+        print("num_image is empty")
     if len(arg)>3:
        vasp = False
     else:

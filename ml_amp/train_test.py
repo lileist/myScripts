@@ -26,12 +26,23 @@ traj_amp = Trajectory('amp_'+arg[1],'w')
 f_threshold = 2.0
 e_threshold = 1.0
 index = 0
+
+dft_fss = []
+dft_es = []
+amp_fss = []
+amp_es = []
+
 for config in configs:
   dft_fs = config.get_forces()
   dft_e = config.get_potential_energy()
   config.set_calculator(calc)
   amp_fs = config.get_forces()
   amp_e = config.get_potential_energy()
+
+  dft_fss.extend(dft_fs.reshape(-1))
+  dft_es.append(dft_e)
+  amp_fss.extend(amp_fs.reshape(-1))
+  amp_es.append(amp_e[0])
 
   traj_amp.write(config)
 
@@ -67,3 +78,9 @@ for config in configs:
   f_off_log.flush()
   off_xyz.flush()
   e_off_xyz.flush()
+
+rmse = open('rmse.dat','w')
+rmse.write("energy: {:12.6f} forces: {:12.6f}\n".format(\
+           np.sqrt(np.mean((amp_es - dft_es)**2)), \
+           np.sqrt(np.mean((amp_fss - dft_fss)**2))))
+

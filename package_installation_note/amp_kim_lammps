@@ -1,0 +1,37 @@
+1. KIM Installation:
+  mkdir build
+  cd build/
+  cmake .. -DCMAKE_INSTALL_PREFIX="/home/leili/.local" -DCMAKE_BUILD_TYPE=Release
+  make
+  make install
+  export LD_LIBRARY_PATH="/home/leili/.local/lib64":$LD_LIBRARY_PATH
+  export PATH="/home/leili/.local/bin":$PATH
+  source ~/.local/bin/kim-api-v2-activate
+
+2. Lammps installation (lammps from https://github.com/ellio167/lammp):
+  cd $LAMMPS_PATH/src/STUBS
+  make
+  cd ..
+  make yes-kim
+  make serial mode=lib
+
+3. Compile EON Client:
+  cp liblammps_serial.a ~/code/eon/client/potentials/LAMMPS/
+  cp STUBS/libmpi_stubs.a ~/code/eon/client/potentials/LAMMPS/
+ --> link KIM static library () to EON clinet by adding following lines to 'Rules.mk'
+       ifdef LAMMPS_KIM
+        LIBS += /home/leili/.local/lib64/libkim-api-v2.so
+        POTENTIALS += "+LAMMPS_KIM"
+       endif
+ -->link curl library by adding "-lcurl" to "LDFLAGS" in "Makefile":
+    LDFLAGS += -limf -lsvml -lifcore -ldl -lirc -lcurl
+  make LAMMPS_POT=1 LAMMPS_KIM=1
+
+4. AMP Driver Installation
+Install the project...
+-- Install configuration: "Release"
+-- Installing: /home/leili/.kim-api-v2/model-drivers-dir/amp_model_driver/libkim-api-v2-model-driver.so
+-- Set runtime path of "/home/leili/.kim-api-v2/model-drivers-dir/amp_model_driver/libkim-api-v2-model-driver.so" to "/home/leili/.local/lib64"
+
+Success!
+

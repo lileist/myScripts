@@ -6,6 +6,10 @@ from amp import Amp
 from ase.io import Trajectory
 from math import sqrt
 from amp.utilities import TrainingConvergenceError
+from scipy.optimize import minimize
+from ase.optimize.optimize import Optimizer
+from ase.optimize import FIRE
+from ase.calculators.lj import LennardJones
 
 def make_dir(path):
     try:
@@ -14,12 +18,12 @@ def make_dir(path):
         if exception.errno != errno.EEXIST:
            raise
 
-#TODO: optimizer wrapper that wraps all kinds of optimizer and select a defined optimizer in a case/switch manner
+#TODO: minimizer wrapper that wraps all kinds of optimizer and select a defined optimizer in a case/switch manner
 #      Need to modify optimize.py in ASE or TSASE to enable run(atoms,fmax, steps):
 #      def run(self, atoms=None, fmax, steps):
 #          if atoms is not None:
 #             self.atoms = atoms
-class optimizer(object):
+class minimizer(object):
       def __init__(self, atoms, optimizer=None,
                    maxstep=0.1, dt=0.1, dtmax=0.2,
                    trajectory = 'geoopt.traj',
@@ -73,14 +77,40 @@ class optimizer(object):
                                maxstep=self.maxstep)
           return opt
 
-class NNML(object):
+from ase.calculators.calculator import Calculator, all_changes
+from ase.calculators.calculator import PropertyNotImplementedError
+
+
+class pseudoCalculator(Calculator):
+    implemented_properties = ['energy', 'forces']
+    default_parameters = {}
+    nolabel = True
+
+    def __init__(self, energy=None, forces=None,**kwargs):
+        Calculator.__init__(self, **kwargs)
+        self.energy = energy
+        self.forces = forces
+
+    def calculate(self, atoms=None,
+                  properties=['energy'],
+                  system_changes=all_changes):
+        Calculator.calculate(self, atoms, properties, system_changes)
+
+        self.results['energy'] = self.energy
+        self.results['forces'] = self.forces
+
+
+
+class NNML(Optimizer):
     """
     Optimizer that uses machine-learning methods to get a rough PES
     """
 
-    def __init__(self, atoms, training_set=None, refine_steps=0, presteps=10,logfile=None,
-                ml_module=None, lossfunction=None, regressor=None,
-                optimizer=None, optimizer_logfile=None, maxstep=0.1, dt=0.1, dtmax=0.2,):
+    def __init__(self, atoms, restart=None, logfile='-', trajectory=None,
+                 ml_module=None, max_training_cycle=10, lossfunction=None, regressor=None,
+                 optimizer=FIRE, optimizer_logfile='ml_opt.log', maxstep=0.1, dt=0.1, dtmax=0.2,
+                 force_consistent=None
+                ):
         """
            ml_module = Amp(descriptor=Gaussian(Gs=Gs,
                                                cutoff=Cosine(6.0)
@@ -89,13 +119,21 @@ class NNML(object):
                            cores=12,
                            model=NeuralNetwork(hiddenlayers=(50,), activation='sigmoid'))
         """
+        Optimizer.__init__(self, atoms, restart, logfile, trajectory,
+                           force_consistent=force_consistent)
+
+
         self.atoms = atoms
-        self.presteps = presteps
-        self.refine_steps = refine_steps
-        self.logfile = open(logfile, 'w')
+        self.replica = atoms.copy()
+        #use a pre-defined approxPot to avoid unphysical structure
+        self.approxPot = LennardJones(epsilon=0.65, sigma=2.744)
+        self.approxPot_replica = atoms.copy()
+        self.approxPot_replica.set_calculator(self.approxPot)
+
+        #self.logfile = open(logfile, 'w')
         #TODO: check if parameters are correctly set up
-        self.training_set = training_set
         self.ml_module   = ml_module
+        self.max_training_cycle = max_training_cycle
         if lossfunction is not None:
            self.ml_module.model.lossfunction = lossfunction
         if regressor is not None:
@@ -105,90 +143,29 @@ class NNML(object):
 #                                                         force_coefficient=0.2)
         self.optimizer = optimizer
         self.optimizer_logfile = optimizer_logfile
+        self.progress_log = open('progress.log','w')
         self.maxstep = maxstep
         self.dt = dt
         self.dtmax = dtmax
+        self.training_set = []
+        self.training_traj = Trajectory('training.traj','w')
+        self.ml_e = None
+        self.ml_log = open('ml_opt.log', 'w')
+
         self.cwd = os.getcwd()
-
-    def refine(self):
+        self.function_calls =0
+        self.force_calls = 0
         """
-        evaluate energy and force of atoms with pes_refiner
-        """
-        if self.refine_steps == 0:
-           return self.atoms.get_forces()
-        self.optimize(atoms=self.atoms, steps=self.refine_steps)
-        return self.atoms.get_forces()
-
-    def train(self, step=0):
-        """
-        training data with machine-learning module given by ml_module
-        """
-        workdir = self.cwd+'/train'+str(step)
-        make_dir(workdir)
-        if step!= 0:
-           self.training_traj.write(self.atoms)
-           #self.training_set.append(self.atoms)
-           self.training_set=Trajectory('training.traj','r')
-        os.chdir(workdir)
-        retries = 0
-        while True:
-           retries+=1
-           print "  Training not converged, retry:", retries
-           try:
-              #TODO: avoid to calculate fingerprints for thoes already done
-              if os.path.exists('amp-untrained-parameters.amp'):
-                 #load nn model including lossfunction
-                 self.ml_module = Amp.load('amp-untrained-parameters.amp')
-              self.ml_module.train(self.training_set, overwrite=True)
-           except TrainingConvergenceError:
-              continue
-           break
-        os.chdir(self.cwd)
-        return Amp.load(workdir+'/amp.amp')
- 
-    def run(self, fmax=0.05, steps=100000):
-        step = 0
-        self.fmax = fmax
-        opt_traj = Trajectory('outer_opt.traj', 'w')
-
-        if self.training_set is None:
-           self.training_traj = Trajectory('training.traj', 'a', self.atoms)
-           #self.training_set = self.optimize(atoms=self.atoms, steps=self.presteps, memo_interval=1)
-           self.optimize(atoms=self.atoms, steps=self.presteps, memo_interval=1)
-           #self.training_set = [atoms for atoms in Trajectory('geoopt.traj')]
-           self.training_set = Trajectory('training.traj','r')
-        #sys.exit()
-        while step < steps:
-            atoms = self.atoms.copy()
-            f=self.refine()
-            self.log(f, step)
-            print "================"
-            print "  Refined force:", f
-            opt_traj.write(self.atoms)
-            if self.converged(f):
-               return True
-            #train macnine learning force field
-            calc = self.train(step)
-            atoms.set_calculator(calc)
-            print "  Predicted force:", atoms.get_forces()
-            self.optimize(atoms, steps)
-            print "================"
-            step+=1
-        return False
-
-    def optimize(self, atoms=None, steps=100000, memo_interval=None):
-        #TODO: define a callable optimizer to avoid the re-construction of optimizer
-        #print "  Before opt:", atoms.get_positions()
         if self.optimizer.__name__ == "FIRE":
-           opt = self.optimizer(atoms,
+           self.minimizer = self.optimizer(atoms,
                                 maxmove = self.maxstep,
                                 dt = self.dt, dtmax = self.dtmax,
-                                    trajectory = 'geoopt.traj',
+                                    trajectory = 'ml_geoopt.traj',
                                     logfile=self.optimizer_logfile)
         else:
-           opt = self.optimizer(atoms,
+           self.minimizer = self.optimizer(atoms,
                                 logfile=self.optimizer_logfile,
-                                trajectory = 'geoopt.traj',
+                                trajectory = 'ml_geoopt.traj',
                                 maxstep=self.maxstep)
         print "  Relax geometry with the machine-learning force field"
         if memo_interval is not None:
@@ -198,33 +175,155 @@ class NNML(object):
                #epot=atoms.get_potential_energy()
                #ekin=atoms.get_kinetic_energy()
            #opt.attach(traj_memo, interval=memo_interval)
-           opt.attach(self.training_traj.write, interval=memo_interval)
-        opt.run(fmax=self.fmax, steps=steps)
-        #print "  After opt:", atoms.get_positions()
-        self.atoms.set_positions(atoms.get_positions())
+           self.minimizer.attach(self.training_traj.write, interval=memo_interval)
+        """
+
+    def relax_model(self, r0):
+        """
+        Minimization on ml PES
+        """
+#        result = minimize(self.predict_e, r0, method='L-BFGS-B', jac=self.predict_g,
+#                         options= {'ftol': 1e-05,
+#                                   'gtol': 1e-03,
+#                                   'maxfun': 1000,
+#                                   'maxiter': 200})
+
+
+#        if self.optimizer.__name__ == "FIRE":
+        #r =r0.reshape(-1,3)
+        self.replica.set_positions(r0.reshape(-1,3))
+        opt = self.optimizer(self.replica,
+                             maxmove = self.maxstep,
+                             dt = self.dt, dtmax = self.dtmax,
+                                 trajectory = 'ml_geoopt.traj',
+                                 logfile=self.optimizer_logfile)
+#        else:
+#           opt = self.optimizer(atoms,
+#                                logfile=self.optimizer_logfile,
+#                                trajectory = 'ml_geoopt.traj',
+#                                maxstep=self.maxstep)
+        self.progress_log.write("  Relax geometry with the machine-learning force field\n")
+        opt.run(fmax=0.1, steps=100)
         #if memo_interval is not None:
-        #   return traj
+           #traj = []
+           #def traj_memo(atoms=self.atoms):
+           #    traj.append(atoms)
+               #epot=atoms.get_potential_energy()
+               #ekin=atoms.get_kinetic_energy()
+           #opt.attach(traj_memo, interval=memo_interval)
+         #  self.minimizer.attach(self.training_traj.write, interval=memo_interval)
+        #print "  After opt:", atoms.get_positions()
 
+#        if result.success:
+        return self.replica.get_positions().reshape(-1)
+#        else:
+#            self.dump()
+#            raise RuntimeError(
+#                "The minimization of the acquisition function has not converged")
 
-    def log(self, forces, step):
-        fmax = sqrt((forces**2).sum(axis=1).max())
-        e = self.atoms.get_potential_energy()
-        T = time.localtime()
-        if self.logfile is not None:
-            name = self.__class__.__name__
-            if step == 0:
-                self.logfile.write(
-                    '%s  %4s %8s %15s %12s\n' %
-                    (' ' * len(name), 'Step', 'Time', 'Energy', 'fmax'))
-            self.logfile.write('%s:  %3d %02d:%02d:%02d %15.6f %12.4f\n' %
-                               (name, step, T[3], T[4], T[5], e, fmax))
-            self.logfile.flush()
+    def predict_e(self, r):
+        self.replica.set_positions(r.reshape(-1,3))
+        self.approxPot_replica.set_positions(r.reshape(-1,3))
+        self.ml_e = self.replica.get_potential_energy() + self.approxPot_replica.get_potential_energy()
+        #print "ml e:", self.ml_e
+        return self.ml_e
 
-    def converged(self, forces=None):
-        """Did the optimization converge?"""
-        if forces is None:
-            forces = self.atoms.get_forces()
-        if hasattr(self.atoms, 'get_curvature'):
-            return ((forces**2).sum(axis=1).max() < self.fmax**2 and
-                    self.atoms.get_curvature() < 0.0)
-        return (forces**2).sum(axis=1).max() < self.fmax**2
+    def predict_g(self,r):
+        self.replica.set_positions(r.reshape(-1,3))
+        self.approxPot_replica.set_positions(r.reshape(-1,3))
+        fs = self.atoms.get_forces().reshape(-1) +  self.approxPot_replica.get_forces().reshape(-1)
+        self.ml_log.write("ml energy: {:12.6f} max force: {:12.6f}\n".format(self.ml_e, np.amax(np.absolute(fs))))
+        return -fs
+
+    def update(self, r, e, f):
+        """
+        training data with machine-learning module given by ml_module
+        """
+        #workdir = self.cwd+'/training'
+        #if not os.path.isdir(workdir):
+        #   make_dir(workdir)
+        r = r.reshape(-1,3)
+        self.atoms.set_positions(r)
+        #self.approxPot_replica.set_positions(r)
+        #f = f - self.approxPot_replica.get_forces()
+        #e = e - self.approxPot_replica.get_potential_energy()
+          
+        pseudoAtoms = self.atoms.copy()
+        pseudoAtoms.set_calculator(pseudoCalculator(energy= e, \
+                                                    forces= f))
+        pseudoAtoms.get_potential_energy()
+        pseudoAtoms.get_forces()
+
+        self.training_set.append(pseudoAtoms)
+        self.training_traj.write(pseudoAtoms)
+        #self.training_set=Trajectory('training.traj','r')
+        #os.chdir(workdir)
+        if os.path.exists('amp-fingerprint-primes.ampdb'):
+           os.system('rm -rf amp-fingerprint-primes.ampdb')
+        if os.path.exists('amp-fingerprints.ampdb'):
+           os.system('rm -rf amp-fingerprints.ampdb')
+        if os.path.exists('amp-fingerprints.ampdb'):
+           os.system('rm -rf amp-neighborlists.ampdb')
+        #if os.path.exists('amp.amp'):
+        #   os.system('rm amp.amp')
+        #if os.path.exists('amp-untrained-parameters.amp'):
+           #load nn model including lossfunction
+        #   os.system('rm amp-untrained-parameters.amp')
+        try:
+           self.progress_log.write("Train ml model\n")
+           self.ml_module.train(images='training.traj', overwrite=True)
+        except TrainingConvergenceError:
+           os.system('mv amp-untrained-parameters.amp amp.amp')
+           pass
+        #load ml model
+        try:
+           self.replica.set_calculator(Amp.load('amp.amp'))
+        except:
+           self.replica.set_calculator(Amp.load('amp-untrained-parameters.amp'))
+           pass
+        #os.chdir(self.cwd)
+ 
+    def step(self, f):
+    
+        atoms = self.atoms
+        r0 = atoms.get_positions().reshape(-1)
+        e0 = atoms.get_potential_energy(force_consistent=self.force_consistent) 
+
+        if f is None:
+           f = atoms.get_forces()
+        #update ml model
+        self.update(r0, e0, f)
+
+        #relax atoms on ml-rough PES
+        r1 = self.relax_model(r0)
+        self.atoms.set_positions(r1.reshape(-1, 3))
+
+        e1 = self.atoms.get_potential_energy(force_consistent=self.force_consistent)
+        f1 = self.atoms.get_forces()
+        
+        self.function_calls += 1
+        self.force_calls += 1
+
+        count = 0
+        self.progress_log.write("# New step started:\n")
+        while e1 >= e0:
+
+            self.update(r1, e1, f1)
+            r1 = self.relax_model(r0)
+
+            self.atoms.set_positions(r1.reshape(-1,3))
+            e1 = self.atoms.get_potential_energy(force_consistent=self.force_consistent)
+            f1 = self.atoms.get_forces()
+
+            self.function_calls += 1
+            self.force_calls += 1
+            self.progress_log.write("  Opted with ML: {:3d} {:16.8f} {:16.8f}\n".format(count, e0, e1))
+            self.progress_log.flush()
+            if self.converged(f1):
+                break
+
+            count += 1
+            if count == 30:
+                raise RuntimeError('A descent model could not be built')
+#        self.dump()
+

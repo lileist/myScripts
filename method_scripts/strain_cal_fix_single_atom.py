@@ -45,7 +45,7 @@ def make_dir(path):
         if exception.errno != errno.EEXIST:
            raise
 
-def fix_atoms(filename, fixed_atoms=None, fixed_direction=2):
+def fix_atoms(filename, fixed_atoms=None, fixed_directions=2):
     posfile = open(filename, 'r')
     lines= posfile.readlines()
     posfile.close()
@@ -54,11 +54,7 @@ def fix_atoms(filename, fixed_atoms=None, fixed_direction=2):
     for line in lines:
        if i-8 in fixed_atoms:
           fields = line.split()
-          if fixed_direction =='all':
-             fields[3] = 'F'
-             fields[4] = 'F'
-             fields[5] = 'F'
-          else:
+          for fixed_direction in fixed_directions:
              fields[2+fixed_direction] = 'F'
           line=' '+'  '.join(fields)+'\n'
        output.write("%s"%(line))
@@ -97,7 +93,7 @@ def main():
     print paras
     target_atom = int(paras['target_atom'])
     #set strain
-    fixed_direction = paras['fix_direction']
+    fixed_direction = [int(field) for field in paras['fix_direction'].split()]
     #read geometry
     p1 = read(filename=paras['start_structure'], index=0, format = 'vasp')
     p2 = read(filename=paras['end_structure'], index=0, format = 'vasp')
@@ -113,7 +109,7 @@ def main():
         job_i = working_dir+'/'+str(i)
         make_dir(job_i)   
         write(filename=job_i+'/POSCAR', images=p1, format='vasp')
-        fix_atoms(filename=job_i+'/POSCAR', fixed_atoms = [target_atom], fixed_direction=fixed_direction)
+        fix_atoms(filename=job_i+'/POSCAR', fixed_atoms = [target_atom], fixed_directions=fixed_direction)
         i += 1
         os.system('cp POTCAR '+job_i)
         os.system('cp KPOINTS '+job_i)

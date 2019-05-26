@@ -40,9 +40,15 @@ def main():
     else:
        for image in range(0, num_image+2):
            if image==0:
-              p1 = read(filename=arg[2], index=0, format = 'xyz')
+              try:
+                p1 = read(filename=arg[2], index=0, format = 'xyz')
+              except:
+                p1 = read(filename=arg[2], index=0, format = 'vasp')
            elif image==num_image+1:
-              p1 = read(filename=arg[3], index=0, format = 'xyz')
+              try:
+                p1 = read(filename=arg[3], index=0, format = 'xyz')
+              except:
+                p1 = read(filename=arg[3], index=0, format = 'vasp')
            else:
               p1 = read(filename=str(image)+'.CON', index=0, format = 'vasp')
            traj.write(p1)

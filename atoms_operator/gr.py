@@ -135,6 +135,7 @@ def main():
     nimage = 0
     t_dist = 0
     n_bond = 0
+    Rc = 6.0
 
     for config in configs:
         nimage += 1
@@ -153,7 +154,11 @@ def main():
   
         for i in range(natom-2):
             for j in range(i+1,natom-1):
+                if config.get_distance(i,j) > Rc:
+                   continue
                 for l in range(j+1,natom):
+                    if config.get_distance(i,l) > Rc:
+                       continue
                     sides = sorted([config[i].symbol,config[l].symbol])
                     key=''.join([sides[0], config[j].symbol, sides[1]])
                     angle = config.get_angle(i, j, l)

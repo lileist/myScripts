@@ -83,21 +83,9 @@ def simpson(f, a, b, n):
 def main():
     arg = sys.argv
     paras = readinputs(arg[1])
-    d_step = int(paras['d_step'])
     stablize_steps = int(paras['stablize_step'])
     distances=paras['distance'].split()
     
-    rs = paras['reactant'].split()
-    fs = paras['product'].split()
-    ts = paras['transition_state'].split()
-    rs_min = distances.index(rs[0])
-    rs_max = distances.index(rs[1])
-    fs_min = distances.index(fs[0])
-    fs_max = distances.index(fs[1])
-    ts_min = distances.index(ts[0])
-    ts_max = distances.index(ts[1])
-
-
     dx = float(paras['dx'])
     forces=OrderedDict()
     avg_forces = OrderedDict()
@@ -129,8 +117,8 @@ def main():
         n_forces = len(forces[distance])
         md_steps.append(n_forces)
     print md_steps
-    n_slices = int((np.amin(md_steps)-stablize_steps)/d_step)+1
-    print n_slices
+    #n_slices = int((np.amin(md_steps)-stablize_steps)/d_step)+1
+    #print n_slices
 if __name__ == '__main__':
     main()
     

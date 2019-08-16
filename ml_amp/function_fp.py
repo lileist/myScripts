@@ -85,7 +85,8 @@ def calculate_G4(Rc, cutoff_fxn, theta_s, zeta, eta, gamma):
     ymin = -3.0
     xmin = -3.0
     R0 = np.array([0.0,0.0])
-    r = Rc/3.0
+    #r = Rc/3.0
+    r = 2.66
     nb_1 = np.array([-r, 0.0])
     theta = 0
     for i in range(150):
@@ -121,7 +122,7 @@ def calculate_G4(Rc, cutoff_fxn, theta_s, zeta, eta, gamma):
         term *= cutoff_fxn(**_Rik)
         term *= cutoff_fxn(**_Rjk)
     """
-    return np.array(fps), np.array(thetas)
+    return np.array(fps)/np.sum(np.array(fps)), np.array(thetas)
 
 def log(thetas, g2s, gr, etas, filename):
    Rij=0

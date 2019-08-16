@@ -11,17 +11,19 @@ test_traj = Trajectory('test_images.traj', 'w')
 i=0
 e_log=[]
 configs_list=[]
-f_threshold = 10
-f_split = 3
+#f_threshold = 10
+f_threshold = 1000
+f_split = 100000
 f_log =open('f_log.dat', 'w')
 f_numb = 0
 high_f = []
 for config in configs:
   i+=1
   curr_f = config.get_forces()
-  if np.any(abs(curr_f)) > f_threshold:
+  #if np.any(abs(curr_f)) > f_threshold:
+  if np.amax(np.absolute(curr_f)) > f_threshold:
      continue
-  if np.any(abs(curr_f)) > f_split:
+  if np.amax(np.absolute(curr_f)) > f_split:
      high_f.append(config)
      continue
   configs_list.append(config)
@@ -31,6 +33,7 @@ for config in configs:
        f_numb += 1
        f_log.write("{:10d} {:12.6f} \n".format(f_numb,dft_f[i]))
 
+print len(high_f)
 random.shuffle(configs_list)
 n_split = int(0.8 * (len(configs_list) + len(high_f))) - len(high_f)
 images_train = configs_list[:n_split]

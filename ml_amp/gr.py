@@ -141,6 +141,9 @@ def main():
     short_HPd = 0
     for config in configs:
         nimage += 1
+        print nimage
+        PdPd_checked = False
+        HPd_checked = False
         for i in range(natom-1):
             for j in range(i+1,natom):
                 key = [config[i].symbol,config[j].symbol]
@@ -149,10 +152,12 @@ def main():
                 t_dist += ij_dist
                 n_bond += 1
                 #Check number of structures with distance below certain value
-                #if ij_dist <= 2.4:
-                #   short_PdPd+=1
-                #if ij_dist <= 1.4:
-                #   short_PdPd+=1
+                if ij_dist <= 2.4 and not PdPd_checked:
+                   short_PdPd+=1
+                   PdPd_checked = True
+                if ij_dist <= 1.4 and not HPd_checked:
+                   short_HPd+=1
+                   HPd_checked = True
 
                 for k in range (gr_numb):
                     if ij_dist >= dist_min + float(k)*de and ij_dist < dist_min + float((k+1))*de:
@@ -160,58 +165,13 @@ def main():
                        numb[key]=numb[key]+1
                        break
   
-        for i in range(natom-2):
-            for j in range(i+1,natom-1):
-                   for l in range(j+1,natom):
-                       if config.get_distance(i,j) < Rc:
-                         if config.get_distance(j,l) < Rc:
-                            sides = sorted([config[i].symbol,config[l].symbol])
-                            key=''.join([sides[0], config[j].symbol, sides[1]])
-                            angle = config.get_angle(i, j, l)
-                            if angle <30. and key=='PdPdPd':
-                               print key, nimage, i, j, l
-                            for k in range (gr_angle_numb):
-                                if angle >= angle_min + float(k)*da and angle < angle_min + float((k+1))*da:
-                                   angle_gr[key][k] += 1
-                                   numb_angle[key]=numb_angle[key]+1
-                                   break
-                         
-                         if config.get_distance(i,l) < Rc:
-                            sides = sorted([config[j].symbol,config[l].symbol])
-                            key=''.join([sides[0], config[i].symbol, sides[1]])
-                            angle = config.get_angle(j, i, l)
-                            for k in range (gr_angle_numb):
-                                if angle >= angle_min + float(k)*da and angle < angle_min + float((k+1))*da:
-                                   angle_gr[key][k] += 1
-                                   numb_angle[key]=numb_angle[key]+1
-                                   break
-
-                       if config.get_distance(l,j) < Rc and config.get_distance(i,l) < Rc:
-                          sides = sorted([config[j].symbol,config[i].symbol])
-                          key=''.join([sides[0], config[l].symbol, sides[1]])
-                          angle = config.get_angle(j, l, i)
-                          for k in range (gr_angle_numb):
-                              if angle >= angle_min + float(k)*da and angle < angle_min + float((k+1))*da:
-                                 angle_gr[key][k] += 1
-                                 numb_angle[key]=numb_angle[key]+1
-                                 break
-
-
-        #print nimage, t_dist/n_bond
     for key in dist_gr:
        for i in range(gr_numb):
            dist_gr[key][i] = float(dist_gr[key][i])/numb[key]
            r = dist_min + float(i)*de - de*0.5
            output[key].write('%15.6f  %15.6f\n' % (r, dist_gr[key][i]))
-    
-    for key in angle_gr:
-       for i in range(gr_angle_numb):
-           try:
-              angle_gr[key][i] = float(angle_gr[key][i])/numb_angle[key]
-           except:
-              continue
-           r = angle_min + float(i)*da - da*0.5
-           output_angle[key].write('%15.6f  %15.6f\n' % (r, angle_gr[key][i]))
+    print short_PdPd, short_HPd
+
 if __name__ == '__main__':
     main()
     

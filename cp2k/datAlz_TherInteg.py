@@ -3,9 +3,18 @@
 This code is used to integrate the mean force from thermal integration, thus obtaining free energy
 datAlz_TherInteg.py [inputfile]
 An example of inputfile (any line starts with '#' will be ignored):
-    cp2k_inp = suppl.inp
-    job_submit_script = qsub.hf
-    job_submit_cmd    = sbatch
+cp2k_inp = suppl.inp
+job_submit_script = run-cp2k.sub
+job_submit_cmd    = sbatch
+distance = 2.4  2.5  2.6  2.8  3.0  3.2  3.4 3.5 3.6  3.8  4.0  4.2  4.4  4.6  4.8 5.0
+stablize_step = 20000
+d_step = 4000
+max_step = 400000
+reactant = 4.2  5.0
+product  = 2.4  2.8
+dx = 0.1
+index_1 = 14
+index_2 = 16
 """
 import sys
 import os
@@ -18,7 +27,8 @@ from ase.utils.geometry import sort
 #from ase.constraints import constrained_indices, FixAtoms
 from collections import OrderedDict 
 from numpy import linalg as la
-import numpy, math
+import numpy as np
+import math
 import subprocess
 
 class cd:
@@ -87,26 +97,38 @@ def find_distance(filename, index_1, index_2,max_numb):
            line = f.readline()
            if i == index_1 or i == index_2:
               fields = line.split()
-              positions.append( numpy.array([ float(fields[j+1]) for j in range(3) ] ))
+              positions.append( np.array([ float(fields[j+1]) for j in range(3) ] ))
        #distance.append(la.norm(positions[0]-positions[1]))
        distance.append(math.sqrt((positions[0][0]-positions[1][0])**2+(positions[0][1]-positions[1][1])**2+(positions[0][2]-positions[1][2])**2))
        if line_numb > max_numb:
           break
     print 'images',line_numb
     f.close()
-    return numpy.array(distance)
+    return np.array(distance)
 
 def main():
     arg = sys.argv
     paras = readinputs(arg[1])
-    d_step = float(paras['d_step'])
+    d_step = int(paras['d_step'])
     stablize_steps = int(paras['stablize_step'])
     distances=paras['distance'].split()
-    output = open('freeEnergy.dat','w')
+    
+    rs = paras['reactant'].split()
+    fs = paras['product'].split()
+    ts = paras['transition_state'].split()
+    rs_min = distances.index(rs[0])
+    rs_max = distances.index(rs[1])
+    fs_min = distances.index(fs[0])
+    fs_max = distances.index(fs[1])
+    ts_min = distances.index(ts[0])
+    ts_max = distances.index(ts[1])
+
+
+    output = open('new_freeEnergy.dat','w')
     dx = float(paras['dx'])
     forces=OrderedDict()
     avg_forces = OrderedDict()
-    free_energies = []
+    free_energies = OrderedDict()
     md_steps = []
     atom_distance = {}
     std_data = open('avg_std.dat', 'w')
@@ -130,23 +152,27 @@ def main():
         if len(arg) > 3:
            atom_distance[distance] = find_distance(distance+'/'+arg[3], int(paras['index_1']), int(paras['index_2']), int(paras['max_step']))
            if int(paras['max_step'])>= len(atom_distance[distance]):
-              std_data.write("%s %15.6f %15.6f\n"%(distance, numpy.average(atom_distance[distance][int(paras['stablize_step']):]),numpy.std(atom_distance[distance][int(paras['stablize_step']):])))
+              std_data.write("%s %15.6f %15.6f\n"%(distance, np.average(atom_distance[distance][int(paras['stablize_step']):]),np.std(atom_distance[distance][int(paras['stablize_step']):])))
            else:
-              std_data.write("%s %15.6f %15.6f\n"%(distance, numpy.average(atom_distance[distance][int(paras['stablize_step']):int(paras['max_step'])]),numpy.std(atom_distance[distance][int(paras['stablize_step']):int(paras['max_step'])])))
+              std_data.write("%s %15.6f %15.6f\n"%(distance, np.average(atom_distance[distance][int(paras['stablize_step']):int(paras['max_step'])]),np.std(atom_distance[distance][int(paras['stablize_step']):int(paras['max_step'])])))
         for line in lines:
 #            numb_line += 1
             if 'Shake  Lagrangian' in line:
                forces[distance].append(float(line.split()[3]))
-        np.arraye(forces[distance])
+        forces[distance]=np.array(forces[distance])
         input_force.close()
         n_forces = len(forces[distance])
         md_steps.append(n_forces)
-
-    n_slices = int((np.amin(md_steps)-stablize_steps)/d_step)
+    print md_steps
+    n_slices = int((np.amin(md_steps)-stablize_steps)/d_step)+1
+    print n_slices
     for key in forces.keys():
         for i in range(n_slices):
+          if key not in avg_forces: 
+             avg_forces[key] = [np.average(forces[key][stablize_steps:stablize_steps+(i+1)*d_step+1])]
+          else:
           #avg_forces[key].append(np.sum(forces[key][stablize_steps+i*d_step:stablize_steps+(i+1)*d_step+1)])
-          avg_forces[key].append(np.average(forces[key][stablize_steps:stablize_steps+(i+1)*d_step+1)])
+             avg_forces[key].append(np.average(forces[key][stablize_steps:stablize_steps+(i+1)*d_step+1]))
     
     if len(arg)>3:
        f = open('distance.dat','w')
@@ -154,38 +180,52 @@ def main():
        for i in range(min([len(atom_distance[distance]) for distance in distances])):
            f.write("%d %s\n"%(i, '   '.join(str(atom_distance[distance][i]) for distance in distances)))
        f.close()
-    output.write("# distance   force   free_energy(eV)  md_steps\n")
+    output_head="{:8s}".format("# CV")
     
     j_key = 0
-    outdata=OrderedDict()
-    sum_slices=OrderedDict()
     """
     free_energies: {'0': a list of free_energy with time from stablize_step to 0*d_step
                      ...
                     'n_slices-1' : a list of free_energy with time from stablize_step to n_slices-1 * d_step
                      }
     """
+    fe_slices={}
+    reactions=open('reaction_es.dat','w')
+    reactions.write('{:12s} {:12s} {:12s} {:12s} {:12s} {:12s}\n'.format(
+                    'time','rs','ts','fs','reactionE','barrier'))
     for i in range(n_slices):
+       fe_slices[i] = []
        for j in range(len(distances)):
            key_1 = distances[j]
+           if key_1 not in free_energies:
+              free_energies[key_1]=[]
+           print key_1
            if j == 0:
-              outdata[j]="{:12.6f}".format(avg_forces[key_1][i])
-              sum_slices[j] = avg_forces[key_1][i]
-              free_energies[key_1].append(avg_forces[key_1][i])
+              temp_fe=avg_forces[key_1][i]
            else:
               key_0 = distances[j-1]
               #free_energy.append(simpson(avg_force, float(distance[i]), float(distance[))
-              free_energies[key_1].append((avg_forces[key_1][i]+avg_forces[key_0][i])* \
-                                         27.21*(float(key_1)-float(key_0)) \
-                                         /(2*0.529)+free_energies[key_0][i]) 
-              outdata[j] += "{:12.6f}".format(free_energies[i][j]) 
-              sum_slices[j] += free_energies[i][j] 
-
+              temp_fe = (avg_forces[key_1][i]+avg_forces[key_0][i])* \
+                          27.21*(float(key_1)-float(key_0)) \
+                          /(2*0.529)-free_energies[key_0][i] 
+           free_energies[key_1].append(-temp_fe)
+           fe_slices[i].append(-temp_fe)
+       es=np.array(fe_slices[i])
+       rs_e = np.amin(es[rs_min:rs_max+1])
+       ts_e = np.amax(es[ts_min:ts_max+1])
+       fs_e = np.amin(es[fs_min:fs_max+1])
+       reactions.write('{:12.2f} {:12.6f} {:12.6f} {:12.6f} {:12.6f} {:12.6f}\n'.format(
+                         float((i+1)*d_step/2000), rs_e, ts_e, fs_e, fs_e - rs_e, ts_e - rs_e))
+    for i in range(len(free_energies[distances[0]])):
+       output_head += "{:13s}".format('FreeEnergy'+str(i))
+    output_head += "{:13s}".format('Average')
+    output_head += "{:13s}".format('STD')
+    output.write("%s \n"%(output_head))
     for i in range(len(distances)):
-       outdat = format_joint(free_energies[distances[i]])
+       outdata = format_joint(free_energies[distances[i]])
        outdata += "{:12.6f}".format(np.average(free_energies[distances[i]]))
        outdata += "{:12.6f}".format(np.std(free_energies[distances[i]], ddof=1))
-       output.write("%s %s \n"%(distances[i], outdata)
+       output.write("%8s %s \n"%(distances[i], outdata))
 
 if __name__ == '__main__':
     main()

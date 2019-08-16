@@ -19,7 +19,7 @@ def main():
     if len(arg) > 5:
        cellsize = float(arg[5])
     else:
-       cellsize = 80.0
+       cellsize = 25.0
     p1 = read(filename=inputfile, index=0, format = fmt1)
     if fmt1 == "xyz":
     #   p1.center()

@@ -1,6 +1,6 @@
 from __future__ import division
 import sys, random, copy
-from ase.io import Trajectory
+from ase.io import Trajectory, read
 from ase import Atoms
 import numpy as np
 
@@ -65,7 +65,7 @@ def read_images(filename,state_number = None, mode = None):
         ener.append(energy)
         p = Atoms(symbols=elements, positions=positions)
         calc = forces_setter(energy=energy, forces=np.array(forces))
-        p.set_cell([[15.,0,0],[0,15.,0],[0,0,15.]],scale_atoms=False)
+        p.set_cell([[20.,0,0],[0,20.,0],[0,0,20.]],scale_atoms=False)
         p.set_pbc((True, True, True))
         p.set_calculator(calc)
         p.center()
@@ -82,10 +82,42 @@ def read_images(filename,state_number = None, mode = None):
     f.close()
     return atoms, np.array(ener), np.array(fnorms), np.array(fmins), np.array(fmaxs)
 
+def read_traj(filename):
+    trajs = read(filename, index=":")
+    #trajs = Trajectory(filename, "r")
+    ener = []
+    atoms=[]
+    fnorms = []
+    fmins = []
+    fmaxs = []
+    for p in trajs:
+        #p.set_cell([[20.,0,0],[0,20.,0],[0,0,20.]],scale_atoms=False)
+        #p.set_pbc((True, True, True))
+        #p.center()
+        e  = p.get_potential_energy()
+        forces = p.get_forces()
+        fs = np.absolute(forces)
+        fmin = np.amin(fs)
+        fmax = np.amax(fs)
+        if fmax > 10.0:
+           continue
+        ener.append(e)
+        fnorm = np.linalg.norm(np.sum(forces,axis=0))
+        atoms.append([p, [e, fnorm, fmin, fmax]])
+        fmins.append(fmin)
+        fmaxs.append(fmax)
+        fnorms.append(fnorm)
+    return atoms, np.array(ener), np.array(fnorms), np.array(fmins), np.array(fmaxs)
+
+
 arg = sys.argv
-configs, es, fnorms, fmins, fmaxs = read_images(arg[1])
+if arg[1].split('.')[1]=='xyz':
+   configs, es, fnorms, fmins, fmaxs = read_images(arg[1])
+if arg[1].split('.')[1]=='traj':
+   configs, es, fnorms, fmins, fmaxs = read_traj(arg[1])
 
 print len(configs)
+print np.argmin(es)
 start_images = configs[np.argmin(es)]
 start_coords = start_images[0].get_positions()
 rs = []
@@ -113,35 +145,40 @@ for config in configs:
 duplicated_index = []
 for i in range(len(configs)-1):
   config_1 = configs[i]
-  print config_1[1]
+  #print config_1[1]
   if i in duplicated_index:
      continue
-  print i
+  #print i
   for j in range(i+1, len(configs)):
     config_2 = configs[j]
+    #if j in duplicated_index:
+    #   continue
     if abs(config_2[1][0] - config_1[1][0]) < 0.02 and \
        abs(config_2[1][1] - config_1[1][1]) < 0.05 and \
        abs(config_2[1][2] - config_1[1][2]) < 0.05 and \
        abs(config_2[1][3] - config_1[1][3]) < 0.05 and \
-       abs(config_2[1][4] - config_1[1][4]) < 0.05:
+       abs(config_2[1][4] - config_1[1][4]) < 0.05 and \
+       j not in duplicated_index:
        duplicated_index.append(j)
 
-print len(configs)
+print "Before removing duplicated image:", len(configs)
 for index in sorted(duplicated_index, reverse = True):
    del configs[index]
-print len(configs)
-traj = Trajectory('MD_images.traj', 'w')
+print "After removing duplicated image:", len(configs)
+
+test_traj = Trajectory('test_'+arg[1], 'w')
+train_traj = Trajectory('train_'+arg[1], 'w')
 #test_traj = Trajectory('test_images.traj', 'w')
 #del configs[:min_index]
 
-"""
-random.shuffle(configs_list)
-n_split = int(0.8 * (len(configs_list) + len(high_f))) - len(high_f)
-images_train = configs_list[:n_split]
-images_test = configs_list[n_split:]
-images_train.extend(high_f)
-"""
-for image in configs:
-    #i+=1
-    #train.write("%10d %12.8f\n"%(i, image.get_potential_energy()))
-    traj.write(image[0])
+random.shuffle(configs)
+n_split = int(1.0 * (len(configs)))
+images_train = configs[:n_split+1]
+images_test = configs[n_split:]
+print "Train images:", len(images_train)
+print "Test images: ", len(images_test)
+
+for image in images_test:
+    test_traj.write(image[0])
+for image in images_train:
+    train_traj.write(image[0])

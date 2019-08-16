@@ -1,3 +1,6 @@
+"""
+Compare DFT and ml forcefield 
+"""
 from ase.io import read
 from ase.io import Trajectory
 from amp import Amp
@@ -81,6 +84,6 @@ for config in configs:
 
 rmse = open('rmse.dat','w')
 rmse.write("energy: {:12.6f} forces: {:12.6f}\n".format(\
-           np.sqrt(np.mean((amp_es - dft_es)**2)), \
-           np.sqrt(np.mean((amp_fss - dft_fss)**2))))
+           np.sqrt(np.mean((np.array(amp_es) - np.array(dft_es))**2)), \
+           np.sqrt(np.mean((np.array(amp_fss) - np.array(dft_fss))**2))))
 

@@ -93,7 +93,7 @@ def main():
     arg = sys.argv
     paras = readinputs(arg[1])
     distances=paras['distance'].split()
-    output = open('freeEnergy.dat','w')
+    #output = open('freeEnergy.dat','w')
     dx = float(paras['dx'])
     avg_force = []
     free_energy = []

@@ -119,8 +119,10 @@ def main():
    print cm
 #   log_structures = Trajectory(filename+'.traj',
 #                            'w', atoms)
+   cellsize = 35.0
    for p in p1:
-      p.wrap(center=(0.5,0.5,0.5))
+      p.set_cell([[cellsize,0,0],[0,cellsize,0],[0,0,cellsize]],scale_atoms=False)
+      p.center()
       #p.center(about=cm)  
    write(filename=outputfile,images=p1,format=outputfile.split('.')[1])
 #   write(filename='au.xyz',images=p1,format='xyz')

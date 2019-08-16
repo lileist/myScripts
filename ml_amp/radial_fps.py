@@ -50,7 +50,7 @@ def log(thetas, g2s, gr, etas, filename):
    for i in range(len(thetas)):
       output = "{:12.6f}".format(thetas[i])
       for j in range(len(etas)):
-         output += "{:12.8f}".format(g2s[etas[j]][i])
+         output += "{:14.12f}".format(g2s[etas[j]][i])
       g_2.write("{:s} {:12.8f}\n".format(output, gr[i]))
    return
    
@@ -68,6 +68,15 @@ default_paras = dict(
     eta = 0.005,
     )
 args = sys.argv
+gr_file=open(args[1], 'r')
+auto = False
+if len(args)==6:
+  auto = True
+  eta = float(args[2])
+  Rmin = float(args[3])
+  Rmax = float(args[4])
+  dRs = float(args[5])
+
 paras=readinputs('input.ini')
 
 for para in default_paras:
@@ -81,7 +90,6 @@ cutoff={'name': 'Cosine', 'kwargs': {'Rc': Rc}}
 cutoff_fxn = dict2cutoff(cutoff)
 
 radium = []
-gr_file=open(args[1], 'r')
 lines = gr_file.readlines()
 gr = []
 Rij = 0
@@ -98,8 +106,20 @@ g2s = {}
 g2_orig={}
 g2s_gr = {}
 keys=[]
-etas = [float(eta) for eta in paras['etas']]
+etas = [float(field) for field in paras['etas']]
 Rs = [float(field) for field in paras['Rs']]
+
+if auto:
+  etas = []
+  nRs = int((Rmax-Rmin)/dRs)
+  Rs = []
+  for i in range(nRs):
+     etas.append(eta)
+     Rs.append(Rmin+i*dRs)
+  print Rs
+  print etas
+
+
 for eta_rs in zip(etas, Rs):
     Rij=0
     key = str(eta_rs[0])+'_'+str(eta_rs[1])

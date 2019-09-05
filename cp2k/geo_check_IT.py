@@ -93,13 +93,11 @@ def main():
     arg = sys.argv
     paras = readinputs(arg[1])
     distances=paras['distance'].split()
-    output = open('freeEnergy.dat','w')
     dx = float(paras['dx'])
     avg_force = []
     free_energy = []
     md_steps = []
     atom_distance = {}
-    std_data = open('avg_std.dat', 'w')
     tag = None
     atoms =None
     traj = Trajectory('reaction.traj','w', atoms)

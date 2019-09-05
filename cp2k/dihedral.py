@@ -68,76 +68,118 @@ def printMatrix(a, e_min, e_max, s_min, s_max):
 
 def get_dihedral_angle(atoms, f_p1, f_p2, f_p3, target_1):
     angle = atoms.get_dihedral(f_p1, f_p2, f_p3, target_1,mic=False)
-    if angle > 300:
-       return -360+angle
-    else:
-       return angle
+    #if angle > 300:
+    #   return -360+angle
+    #else:
+    return angle
 
 def main():
     arg = sys.argv
     paras = readinputs(arg[1])
-    target_1 = int(paras['target_atom_1'])
-    target_2 = int(paras['target_atom_2'])
+    targets = [int(field) for field in paras['target_atoms'].split()]
     f_p1 = int(paras['facet_p1'])
     f_p2 = int(paras['facet_p2'])
     f_p3 = int(paras['facet_p3'])
     angle_min = float(paras['minimum_angle'])
     angle_max = float(paras['maximum_angle'])
     da = float(paras['step_size'])
-    angle_span = 360
+    angle_span = 720
     trajs = read(filename=arg[2], index=':', format='xyz')
     output = open('w_distribution.dat','w')
     evolve_t = open('evolve_t.dat','w')
     #initialize
-    dihedral_1 = []
-    dihedral_2 = []
     gr_1 = []
     gr_2 = []
-    w = int(angle_span/da)+1
-    h = w
-    gr_2d = [[0 for x in range(w)] for y in range (h)]
+    #gr_2d = [[0 for x in range(w)] for y in range (h)]
     image_numb = len(trajs)
-    t_numb=0
-    t_numb_1 =0
-    for i in range(w):
-        gr_1.append(0.0)
+    t_numb_0 = 0
     i=0
+    dihedrals = {}
+    grs = {}
+    t_numb = {}
+    for target in targets:
+        dihedrals[target] = []
+        t_numb[target] = 0
+        grs[target] = []
+
     for traj in trajs:
-        f_p1_v = traj[f_p1].position
-        norm_vect = numpy.cross(traj[f_p2].position - f_p1_v, traj[f_p3].position - f_p1_v)
-        dihedral_1.append(get_dihedral_angle(traj, f_p1, f_p2, f_p3, target_1))
+        #f_p1_v = traj[f_p1].position
+        #norm_vect = numpy.cross(traj[f_p2].position - f_p1_v, traj[f_p3].position - f_p1_v)
+        for target in targets:
+           dihedral = get_dihedral_angle(traj, f_p1, f_p2, f_p3, target)
+           dihedrals[target].append(dihedral)
     #                      * numpy.sign(numpy.dot(norm_vect, traj[target_1].position - f_p1_v)))
-        dihedral_2.append(get_dihedral_angle(traj,f_p1, f_p2, f_p3, target_2))
-    #                      * numpy.sign(numpy.dot(norm_vect, traj[target_2].position - f_p1_v)))
-        evolve_t.write("%8.4f  %8.4f %8.4f\n"% (i*0.0005, dihedral_1[i], dihedral_2[i]))
-        for j in range(w):
-            if dihedral_1[i] >= angle_min + float(j)*da and dihedral_1[i] < angle_min + float((j+1))*da:
-               gr_1[j] += 1
-               t_numb_1 +=1
-        i+=1
-        evolve_t.flush()
-    for i in xrange (image_numb):
-        for k in xrange (h):
-            for j in xrange (w):
-                if dihedral_1[i] >= angle_min + float(j)*da and dihedral_1[i] < angle_min + float((j+1))*da \
-                   and dihedral_2[i] >= angle_min + float(k)*da and dihedral_2[i] < angle_min+float((k+1))*da:
-                   gr_2d[k][j] += 1
-                   t_numb+=1
+#    for i in xrange (image_numb):
+#        for k in xrange (h):
+#            for j in xrange (w):
+#                if dihedral_1[i] >= angle_min + float(j)*da and dihedral_1[i] < angle_min + float((j+1))*da \
+#                   and dihedral_2[i] >= angle_min + float(k)*da and dihedral_2[i] < angle_min+float((k+1))*da:
+#                   gr_2d[k][j] += 1
+ #                  t_numb_0 += 1
     #normalize
-    entropy = 0
+    maxs = -400.0
+    mins = 400.0
+    for target in targets:
+       temp = numpy.array(dihedrals[target])
+       #dihedrals[target] = temp - numpy.mean(temp)
+       dihedrals[target] = temp
+       temp_max = numpy.amax(dihedrals[target]) 
+       temp_min = numpy.amin(dihedrals[target])
+       if temp_max > maxs:
+          maxs = temp_max
+       if temp_min < mins:
+          mins = temp_min
+    
+    w = int((maxs-mins)/da)+1
+    h = w
+    entropies = {}
+    deviations = ''
+    head = ''
+    for target in targets:
+      entropies[target]=0
+      for i in range(w):
+          grs[target].append(0.0)
+      deviations += " {:8.4f} ".format(numpy.std(dihedrals[target]))
+      head += " {:>8s} ".format(trajs[0][target].symbol+str(target))
+
+    for i in range(image_numb):
+        output_dihedrals = " {:8.4f} ".format(i*0.0005)
+        for target in targets:
+           dihedral = dihedrals[target][i]
+           for j in range(w):
+               if dihedral >= mins + float(j)*da and dihedral < mins + float((j+1))*da:
+                  grs[target][j] += 1
+                  t_numb[target] += 1
+           output_dihedrals += " {:8.4f} ".format(dihedral)
+        evolve_t.write("%s\n"% (output_dihedrals))
+        evolve_t.flush()
+
     for i in range(w):
-       gr_1[i] = float(gr_1[i])/float(t_numb_1)
-       if gr_1[i] > 0:
-         entropy += gr_1[i] * (-math.log10(gr_1[i]))
-       angle = angle_min + float(i)*da 
-       output.write('%15.6f  %15.6f\n' % (angle, gr_1[i]))
-       for j in range(h):
-          gr_2d[i][j] = float(gr_2d[i][j])/float(t_numb)
-    deviation = numpy.std(dihedral_1)
+       angle = mins + float(i)*da 
+       output_grs = " {:15.6f} ".format(angle)
+       for target in targets:
+          grs[target][i] = float(grs[target][i])/float(t_numb[target])
+          output_grs += " {:15.6f} ".format(grs[target][i])
+          if grs[target][i] > 0:
+            entropies[target] += grs[target][i] * (-math.log10(grs[target][i]))
+          #elif grs[target][i] < 0:
+          #  entropy += -grs[target][i] * (-math.log10(-grs[target][i]))
+       output.write('%s\n' % (output_grs))
+#       for j in range(h):
+#          gr_2d[i][j] = float(gr_2d[i][j])/float(t_numb)
+    max_s = 0
+    for target in targets:
+       head += " {:>8s} ".format(trajs[0][target].symbol+str(target)+'_s')
+       deviations += " {:8.4f} ".format(entropies[target])
+       if max_s < entropies[target]:
+          max_s = entropies[target]
+    head += " {:>8s} ".format('max_s')
+    deviations += " {:8.4f} ".format(max_s)
     log_stat = open('entropy.dat','w')
-    log_stat.write("%8.4f  %8.4f\n"% (entropy, deviation))
-    a=numpy.array(gr_2d)
-    printMatrix(a, angle_min, angle_max, angle_min, angle_max)
+    log_stat.write("%s\n"% (head))
+    log_stat.write("%s\n"% (deviations))
+#    a=numpy.array(gr_2d)
+#    printMatrix(a, angle_min, angle_max, angle_min, angle_max)
 
 if __name__ == '__main__':
     main()

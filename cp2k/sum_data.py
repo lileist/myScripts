@@ -3,10 +3,11 @@
 This code is used to integrate the mean force from thermal integration, thus obtaining free energy
 datAlz_TherInteg.py [inputfile]
 An example of inputfile (any line starts with '#' will be ignored):
+distance = 2.4  2.5  2.6  2.8  3.0  3.2  3.4 3.5 3.6  3.8  4.0  4.2  4.4  4.6  4.8 5.0
+mode = accumulative or separate
 cp2k_inp = suppl.inp
 job_submit_script = run-cp2k.sub
 job_submit_cmd    = sbatch
-distance = 2.4  2.5  2.6  2.8  3.0  3.2  3.4 3.5 3.6  3.8  4.0  4.2  4.4  4.6  4.8 5.0
 stablize_step = 20000
 d_step = 4000
 max_step = 400000
@@ -68,59 +69,31 @@ def format_joint(elements):
        jointed+="{:12.6f}".format(element)
     return jointed
 
-def simpson(f, a, b, n):
-    if n%2:
-       raise ValueError("n must be even (received n=%d)" % n)
-    h = (b - a) / n
-    s= f[str(a)] +f[str(b)]
-    
-    for i in range(1, n, 2): 
-        s += 4 * f[str(a + i * h)]
-    for i in range(2, n-1, 2):
-        s += 2 * f[str(a + i * h)]
-    return s * h / 3
-    
+
 def main():
     arg = sys.argv
     paras = readinputs(arg[1])
-    stablize_steps = int(paras['stablize_step'])
-    distances=paras['distance'].split()
-    
-    dx = float(paras['dx'])
-    forces=OrderedDict()
-    avg_forces = OrderedDict()
-    free_energies = OrderedDict()
-    md_steps = []
-    atom_distance = {}
-    force_file = None
-    for distance in distances:
-        forces[distance]=[]
-        if force_file is None:
-           cp2k_inp = open(distance+'/'+paras['cp2k_inp'], 'r')
-           lines = cp2k_inp.readlines()
-           for line in lines:
-               if 'PROJECT_NAME' in line:
-                  force_file = line.split()[1]+'-1.LagrangeMultLog'
-                  break
-        input_force = open(distance+'/'+force_file, 'r')
-        total_force = 0
-        shake_numb = 0
-        numb_force = 0
-        numb_line = 0
-        lines = input_force.readlines()
-        for line in lines:
-#            numb_line += 1
-            if 'Shake  Lagrangian' in line:
-               forces[distance].append(float(line.split()[3]))
-        forces[distance]=np.array(forces[distance])
-        input_force.close()
-        n_forces = len(forces[distance])
-        md_steps.append(n_forces)
+    dirs=paras['dirs'].split()
+    target_file = paras['target_file']
 
-    print distances
-    print md_steps
-    #n_slices = int((np.amin(md_steps)-stablize_steps)/d_step)+1
-    #print n_slices
+    output = open(dirs[0].split('_')[0]+'_'+target_file.split('_')[0][0:4]+'_std.dat','w')
+
+    output.write('{:12s} {:12s} {:12s} {:12s} {:12s} {:12s} {:12s}\n'.format(
+                   'T', 'reactionE','avg','std', 'barrier', 'std', 'avg'))
+    ess = {}
+    for d in dirs:
+       ess_input = open('../'+d+'/'+target_file, 'r')
+       for line in ess_input.readlines():
+         if 'time' in line:
+           ess[d] = []
+           continue
+         ess[d].append([float(field) for field in line.split()])
+       ess_input.close()
+       stds = np.std(ess[d], axis=0, ddof=1)
+       avgs = np.average(ess[d], axis=0)
+       output.write('{:12s} {:12.6f} {:12.6f} {:12.6f} {:12.6f} {:12.6f} {:12.6f}\n'.format(
+                    d.split('_')[1][0:-1], ess[d][-1][4], avgs[4], stds[4], ess[d][-1][5], avgs[5], stds[5]))
+
 if __name__ == '__main__':
     main()
     

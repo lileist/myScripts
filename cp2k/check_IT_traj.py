@@ -99,7 +99,6 @@ def main():
     free_energy = []
     md_steps = []
     atom_distance = {}
-    std_data = open('avg_std.dat', 'w')
     tag = None
     atoms =None
     traj = Trajectory('reaction.traj','w', atoms)

@@ -3,10 +3,11 @@
 This code is used to integrate the mean force from thermal integration, thus obtaining free energy
 datAlz_TherInteg.py [inputfile]
 An example of inputfile (any line starts with '#' will be ignored):
+distance = 2.4  2.5  2.6  2.8  3.0  3.2  3.4 3.5 3.6  3.8  4.0  4.2  4.4  4.6  4.8 5.0
+mode = accumulative or separate
 cp2k_inp = suppl.inp
 job_submit_script = run-cp2k.sub
 job_submit_cmd    = sbatch
-distance = 2.4  2.5  2.6  2.8  3.0  3.2  3.4 3.5 3.6  3.8  4.0  4.2  4.4  4.6  4.8 5.0
 stablize_step = 20000
 d_step = 4000
 max_step = 400000
@@ -110,6 +111,10 @@ def main():
     arg = sys.argv
     paras = readinputs(arg[1])
     d_step = int(paras['d_step'])
+    if 'mode' in paras.keys():
+       mode = paras['mode']
+    else:
+       mode = 'accumulative'
     stablize_steps = int(paras['stablize_step'])
     distances=paras['distance'].split()
     
@@ -124,7 +129,7 @@ def main():
     ts_max = distances.index(ts[1])
 
 
-    output = open('new_freeEnergy.dat','w')
+    output = open(mode+'_freeEnergy.dat','w')
     dx = float(paras['dx'])
     forces=OrderedDict()
     avg_forces = OrderedDict()
@@ -166,14 +171,39 @@ def main():
     print md_steps
     n_slices = int((np.amin(md_steps)-stablize_steps)/d_step)+1
     print n_slices
-    for key in forces.keys():
-        for i in range(n_slices):
-          if key not in avg_forces: 
-             avg_forces[key] = [np.average(forces[key][stablize_steps:stablize_steps+(i+1)*d_step+1])]
-          else:
-          #avg_forces[key].append(np.sum(forces[key][stablize_steps+i*d_step:stablize_steps+(i+1)*d_step+1)])
-             avg_forces[key].append(np.average(forces[key][stablize_steps:stablize_steps+(i+1)*d_step+1]))
-    
+
+    if mode == 'accumulative':
+       print 'accumulative'
+       for key in forces.keys():
+           for i in range(n_slices):
+             end_index = stablize_steps+(i+1)*d_step+1
+             if end_index > len(forces[key]):
+                end_index = -1
+             if key not in avg_forces: 
+                #avg_forces[key] = [np.average(forces[key][stablize_steps:stablize_steps+(i+1)*d_step+1])]
+                avg_forces[key] = [np.average(forces[key][stablize_steps:end_index])]
+             else:
+             #avg_forces[key].append(np.sum(forces[key][stablize_steps+i*d_step:stablize_steps+(i+1)*d_step+1)])
+                #avg_forces[key].append(np.average(forces[key][stablize_steps:stablize_steps+(i+1)*d_step+1]))
+                avg_forces[key].append(np.average(forces[key][stablize_steps:end_index]))
+    elif mode == 'separate':
+       for key in forces.keys():
+           for i in range(n_slices):
+             end_index = stablize_steps+(i+1)*d_step+1
+             if end_index > len(forces[key]):
+                end_index = -1
+             if key not in avg_forces: 
+                avg_forces[key] = [np.average(forces[key][stablize_steps+i*d_step:end_index])]
+             else:
+                avg_forces[key].append(np.average(forces[key][stablize_steps+i*d_step:end_index]))
+    elif mode == 'step_forward':
+       print mode
+       for key in forces.keys():
+           for i in range(n_slices):
+             if key not in avg_forces: 
+                avg_forces[key] = [np.average(forces[key][i*d_step:i*d_step+stablize_steps])]
+             else:
+                avg_forces[key].append(np.average(forces[key][i*d_step:i*d_step+stablize_steps]))
     if len(arg)>3:
        f = open('distance.dat','w')
        f.write("#  %s\n"%('  '.join([distance for distance in distances])))
@@ -190,7 +220,7 @@ def main():
                      }
     """
     fe_slices={}
-    reactions=open('reaction_es.dat','w')
+    reactions=open(mode+'_reaction_es.dat','w')
     reactions.write('{:12s} {:12s} {:12s} {:12s} {:12s} {:12s}\n'.format(
                     'time','rs','ts','fs','reactionE','barrier'))
     for i in range(n_slices):
@@ -214,8 +244,15 @@ def main():
        rs_e = np.amin(es[rs_min:rs_max+1])
        ts_e = np.amax(es[ts_min:ts_max+1])
        fs_e = np.amin(es[fs_min:fs_max+1])
+       if mode=='step_forward':
+          reactions.write('{:12.2f} {:12.6f} {:12.6f} {:12.6f} {:12.6f} {:12.6f}\n'.format(
+                            float(i*d_step)/2000.0, rs_e, ts_e, fs_e, fs_e - rs_e, ts_e - rs_e))
+          continue
+       end_index =stablize_steps+(i+1)*d_step
+       if end_index > np.amin(md_steps):
+          end_index = np.amin(md_steps)
        reactions.write('{:12.2f} {:12.6f} {:12.6f} {:12.6f} {:12.6f} {:12.6f}\n'.format(
-                         float((i+1)*d_step/2000), rs_e, ts_e, fs_e, fs_e - rs_e, ts_e - rs_e))
+                         float(end_index)/2000.0, rs_e, ts_e, fs_e, fs_e - rs_e, ts_e - rs_e))
     for i in range(len(free_energies[distances[0]])):
        output_head += "{:13s}".format('FreeEnergy'+str(i))
     output_head += "{:13s}".format('Average')

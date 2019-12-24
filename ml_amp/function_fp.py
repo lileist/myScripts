@@ -41,7 +41,7 @@ def type_convertion(para, value):
        return value.split()
     if type(para) is bool:
        return ast.literal_eval(value)
-
+"""
 def calculate_G4(Rc, cutoff_fxn, theta_s,zeta, eta, gamma):
     fps = []
     ymin = -3.0
@@ -72,7 +72,7 @@ def calculate_G4(Rc, cutoff_fxn, theta_s,zeta, eta, gamma):
             term *= cutoff_fxn(**_Rjk)
             fps.append(term)
     return np.array(fps)
-
+"""
 def cal_cutoff(Rc, r):
     if r <= Rc:
       return 0.5*(1.0+np.cos(np.pi * r / Rc))
@@ -85,13 +85,16 @@ def calculate_G4(Rc, cutoff_fxn, theta_s, zeta, eta, gamma):
     ymin = -3.0
     xmin = -3.0
     R0 = np.array([0.0,0.0])
-    #r = Rc/3.0
-    r = 2.66
+    r = Rc/3.0
+    #r = 2.66
     nb_1 = np.array([-r, 0.0])
     theta = 0
     for i in range(150):
         R12 = r * np.sin(theta/2)
-        term = (1. + gamma * np.cos(theta - theta_s)) ** zeta
+        if gamma==-1:
+          term = (1. + gamma * np.cos(theta - (theta_s-np.pi))) ** zeta
+        else:
+          term = (1. + gamma * np.cos(theta - theta_s)) ** zeta
         term *= np.exp(-eta * (r ** 2. + r ** 2. + R12 ** 2.) / (Rc ** 2.))
         term *= cal_cutoff(Rc, r)
         term *= cal_cutoff(Rc, r)
@@ -122,7 +125,11 @@ def calculate_G4(Rc, cutoff_fxn, theta_s, zeta, eta, gamma):
         term *= cutoff_fxn(**_Rik)
         term *= cutoff_fxn(**_Rjk)
     """
-    return np.array(fps)/np.sum(np.array(fps)), np.array(thetas)
+#    if theta_s == 0.:
+#       return np.array(fps)/(2.0*np.sum(np.array(fps))), np.array(thetas)
+       
+    #return np.array(fps)/np.sum(np.array(fps)), np.array(thetas)
+    return np.array(fps), np.array(thetas)
 
 def log(thetas, g2s, gr, etas, filename):
    Rij=0
@@ -143,7 +150,7 @@ def print_expectation(g2s, thetas):
     output = ""
     for k in g2s:
        output += "{:12.8f}".format(np.dot(g4s_gr[k], thetas))
-    print output
+    print(output)
 
 default_paras = dict(
     Rc = 3.0,
@@ -151,6 +158,9 @@ default_paras = dict(
     theta_s = [0., 1., 2.],
     gammas = [1,-1],
     eta = 0.005,
+    to_normalize_theta_ss = [0.0, 0.15],
+    ref_theta_s = 0.45,
+    template = True
     )
 
 args = sys.argv
@@ -181,6 +191,10 @@ zetas = [float(zeta) for zeta in paras['zetas']]
 gammas = [float(gamma) for gamma in paras['gammas']]
 eta = paras['eta']
 keys = []
+
+ref_theta_s = paras['ref_theta_s']
+to_normalize_theta_ss = [float(theta_s) for theta_s in paras['to_normalize_theta_ss']]
+
 for zeta_theta in zip(zetas, theta_ss, gammas):
     zeta = zeta_theta[0]
     theta_s = zeta_theta[1]
@@ -188,9 +202,31 @@ for zeta_theta in zip(zetas, theta_ss, gammas):
     key = str(zeta)+'_' + str(theta_s) +'_'+ str(gamma)
     keys.append(key)
     g4s[key],thetas = calculate_G4(Rc, cutoff_fxn, theta_s, zeta, eta, gamma)
-    g4s_gr[key] = g4s[key] * gr
-    g4s_gr[key] /= sum(g4s_gr[key])
+    if theta_s == ref_theta_s:
+       normal_max = max(g4s[key])
 
+fp_sum = 0
+
+def normalize(fp):
+    max_xval = np.argmax(fp)
+    if fp[0] > fp[max_xval]/100.0:
+       return fp/(np.sum(fp)+np.sum(fp[2*max_xval:]))
+    else:
+       return fp/np.sum(fp)
+
+for key in g4s.keys():
+    
+    #if float(key.split('_')[1]) in to_normalize_theta_ss:
+    #  max_o = max(g4s[key])
+    #  coeff = max_o / normal_max
+    #  g4s[key] /= coeff
+    if paras['template']:
+       g4s[key] = normalize(g4s[key])
+    #fp_sum += sum(g4s[key])
+    g4s_gr[key] = g4s[key] * gr
+    g4s_gr[key] = normalize(g4s_gr[key])
+#for key in g4s.keys():
+#   g4s[key] /= fp_sum
 output_start  = args[1].split('.')[0]+'_'
 log(thetas, g4s, gr, keys, output_start+'g4s.dat')
 log(thetas, g4s_gr, gr, keys, output_start+'g4s_gr.dat')

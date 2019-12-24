@@ -96,7 +96,8 @@ def main():
     output_angle = {}
     symbol_index={}
 #    chem_symbols = configs[0].get_chemical_symbols()
-    chem_symbols = ['H','Pd']
+#    chem_symbols = ['H','Pd']
+    chem_symbols = ['Au']
     for s_a in chem_symbols:
        for s_b in chem_symbols:
            key = [s_a,s_b]
@@ -141,7 +142,7 @@ def main():
     short_HPd = 0
     for config in configs:
         nimage += 1
-        print nimage
+        print(nimage)
         PdPd_checked = False
         HPd_checked = False
         for i in range(natom-1):
@@ -170,7 +171,7 @@ def main():
            dist_gr[key][i] = float(dist_gr[key][i])/numb[key]
            r = dist_min + float(i)*de - de*0.5
            output[key].write('%15.6f  %15.6f\n' % (r, dist_gr[key][i]))
-    print short_PdPd, short_HPd
+    print(short_PdPd, short_HPd)
 
 if __name__ == '__main__':
     main()

@@ -77,10 +77,10 @@ if args.start is not None and args.end is not None:
        except:
          break
        atoms = read('reactant.con',index=0)
-       Au_coord, surface_Au, surface_atom = get_coord(atoms)
+       #Au_coord, surface_Au, surface_atom = get_coord(atoms)
        log_structures.write(atoms)
-       del atoms[surface_atom]
-       log_cores.write(atoms)
+       #del atoms[surface_atom]
+       #log_cores.write(atoms)
 
 if args.states:
    log_structures = Trajectory(str(args.states[0])+'_'+str(args.states[-1])+'.traj',
@@ -145,4 +145,4 @@ if args.akmc_step is not None and args.end is not None:
        log_atoms(log_xyz, atoms)
        del atoms[surface_atom]
        log_cores.write(atoms)
-       print state_n, float(i), states_e[state_n], Au_coord, surface_Au, ttime[i]
+       print(state_n, float(i), states_e[state_n], Au_coord, surface_Au, ttime[i])

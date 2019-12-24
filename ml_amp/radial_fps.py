@@ -13,7 +13,7 @@ from amp import Amp
 #from ase.calculators.lammpslib import LAMMPSlib
 from amp.descriptor.cutoffs import Cosine,dict2cutoff
 import ase.io
-
+from scipy.signal import find_peaks
 
 from amp.descriptor.gaussian import Gaussian
 
@@ -48,9 +48,9 @@ def log(thetas, g2s, gr, etas, filename):
       output += "{:12s}".format(etas[i])
    g_2.write("{:s} {:12s}\n".format(output, "gr"))
    for i in range(len(thetas)):
-      output = "{:12.6f}".format(thetas[i])
+      output = "{:12.6f} ".format(thetas[i])
       for j in range(len(etas)):
-         output += "{:14.12f}".format(g2s[etas[j]][i])
+         output += "{:14.12f} ".format(g2s[etas[j]][i])
       g_2.write("{:s} {:12.8f}\n".format(output, gr[i]))
    return
    
@@ -58,7 +58,7 @@ def print_expectation(g2s, thetas):
     output = ""
     for k in g2s:
        output += "{:12.8f}".format(np.dot(g2s[k], thetas))
-    print output
+    print(output)
 
 default_paras = dict(
     Rc = 3.0,
@@ -116,8 +116,8 @@ if auto:
   for i in range(nRs):
      etas.append(eta)
      Rs.append(Rmin+i*dRs)
-  print Rs
-  print etas
+  print(Rs)
+  print(etas)
 
 
 for eta_rs in zip(etas, Rs):
@@ -138,7 +138,8 @@ for eta_rs in zip(etas, Rs):
 
     g2s_gr[key] = g2s[key] * gr
     g2s_gr[key] /= sum(g2s_gr[key])
-
+    #print np.argmax(g2s_gr[key]), find_peaks(g2s_gr[key], prominence=(None, 0.9))
+    
 output_start = args[1].split('.')[0]+'_'
 log(radium, g2s, gr, keys, output_start+'g2s.dat')
 log(radium, g2s_gr, gr, keys, output_start+'g2s_gr.dat')

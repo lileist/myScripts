@@ -1,13 +1,10 @@
-from __future__ import division
-import sys, random, copy
+import sys
+from expectra.atoms_operator import match, single_atom
 from ase.io import Trajectory, read
-from ase import Atoms
-import numpy as np
-
-from ase.neighborlist import NeighborList
 from ase.calculators.calculator import Calculator, all_changes
 from ase.calculators.calculator import PropertyNotImplementedError
-
+import numpy as np
+import argparse
 
 class forces_setter(Calculator):
     implemented_properties = ['energy', 'forces']
@@ -105,81 +102,66 @@ def read_traj(filename):
            continue
         ener.append(e)
         fnorm = np.linalg.norm(np.sum(forces,axis=0))
-        atoms.append([p, [e, fnorm, fmin, fmax]])
+        atoms.append([p, e])
         fmins.append(fmin)
         fmaxs.append(fmax)
         fnorms.append(fnorm)
     return atoms, np.array(ener), np.array(fnorms), np.array(fmins), np.array(fmaxs)
 
 
-arg = sys.argv
-if arg[1].split('.')[1]=='xyz':
-   configs, es, fnorms, fmins, fmaxs = read_images(arg[1])
-if arg[1].split('.')[1]=='traj':
-   configs, es, fnorms, fmins, fmaxs = read_traj(arg[1])
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--traj', type=str, nargs='+', metavar='trajFile', 
+                        default=None,
+                        help='filename of the trajectory')
+    parser.add_argument('--runtype', type=str, nargs='+', metavar='type', 
+                        default=None,
+                        help='run type: split or match')
+    args = parser.parse_args()
+    print(args)
+    if args.traj[0].split('.')[1]=='xyz':
+       configs, es, fnorms, fmins, fmaxs = read_images(args.traj[0])
+    if args.traj[0].split('.')[1]=='traj':
+       configs, es, fnorms, fmins, fmaxs = read_traj(args.traj[0])
+    if args.runtype[0] == 'split':
+       configs.sort(key=lambda x:x[1])
+       dn = int(len(configs)/14)
+       for i in range(14):
+          print(i)
+          test_traj = Trajectory(str(i)+'.traj','w')
+          start = dn*i
+          if i == 6:
+             end=len(configs)
+          else:
+             end   = dn*(i+1)
+          for config in configs[start : end]:
+             test_traj.write(config[0])
 
-print('Total images:',len(configs))
-print('min E:',np.argmin(es))
-start_images = configs[np.argmin(es)]
-start_coords = start_images[0].get_positions()
-rs = []
-#Tagged with distance to global minimum
-for config in configs:
-  r = np.sum(np.linalg.norm(config[0].get_positions() - start_coords, axis = 1))
-  config[1].extend([r])
-  rs.append(r)
+    if args.runtype[0] == 'match':
+       outtraj = Trajectory('filter.traj','w')
+       for i in range(len(configs)-1):  
+       #calc = force_setter(energy=config.get_potential_energy(), forces=config.get_forces())
+       #config.set_cell([[40.,0,0],[0,40.,0],[0,0,40.]],scale_atoms=False)
+       #config.set_pbc((True, True, True))
+       #config.center()
+       #config.set_calculator(calc)
+          e0 =configs[i][0].get_potential_energy()
+          fs0=configs[i][0].get_forces()
+          matched = False
+          for j in range(i+1, len(configs)):
+             e1 =configs[j][0].get_potential_energy()
+             if abs(e1-e0) <= 0.05:
+                matched=match(configs[i][0], configs[j][0], 0.1, 3.3, indistinguishable=True)
+                if matched:
+                   break
+          print(i, matched)
+          if matched:
+             continue
+          outtraj.write(configs[i][0])
+    #if matched:
+    #   print "matched"
+    #print matched
+if __name__ == '__main__':
+    main()
 
-e_range = [np.amin(es), np.amax(es)]
-fnorm_range = [np.amin(fnorms), np.amax(fnorms)]
-fmin_range = [np.amin(fmins), np.amax(fmins)]
-fmax_range = [np.amin(fmaxs), np.amax(fmaxs)]
 
-#normalization
-for config in configs:
-   config[1] = [  config[1][0] ,
-                ( config[1][1] - fnorm_range[0] ) / ( fnorm_range[1] - fnorm_range[0] ),
-                ( config[1][2] - fmin_range[0] ) / ( fmin_range[1] - fmin_range[0] ),
-                ( config[1][3] - fmax_range[0] ) / ( fmax_range[1] - fmax_range[0] ),
-                  config[1][4]
-               ]
-
-duplicated_index = []
-for i in range(len(configs)-1):
-  config_1 = configs[i]
-  #print config_1[1]
-  if i in duplicated_index:
-     continue
-  #print i
-  for j in range(i+1, len(configs)):
-    config_2 = configs[j]
-    #if j in duplicated_index:
-    #   continue
-    if abs(config_2[1][0] - config_1[1][0]) < 0.02 and \
-       abs(config_2[1][1] - config_1[1][1]) < 0.05 and \
-       abs(config_2[1][2] - config_1[1][2]) < 0.05 and \
-       abs(config_2[1][3] - config_1[1][3]) < 0.05 and \
-       abs(config_2[1][4] - config_1[1][4]) < 0.05 and \
-       j not in duplicated_index:
-       duplicated_index.append(j)
-
-print("Before removing duplicated image:", len(configs))
-for index in sorted(duplicated_index, reverse = True):
-   del configs[index]
-print("After removing duplicated image:", len(configs))
-
-test_traj = Trajectory('test_'+arg[1], 'w')
-train_traj = Trajectory('train_'+arg[1], 'w')
-#test_traj = Trajectory('test_images.traj', 'w')
-#del configs[:min_index]
-
-random.shuffle(configs)
-n_split = int(0.8 * (len(configs)))
-images_train = configs[:n_split+1]
-images_test = configs[n_split:]
-print("Train images:", len(images_train))
-print("Test images: ", len(images_test))
-
-for image in images_test:
-    test_traj.write(image[0])
-for image in images_train:
-    train_traj.write(image[0])

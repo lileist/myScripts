@@ -4,12 +4,15 @@ Compare DFT and ml forcefield
 from ase.io import read
 from ase.io import Trajectory
 from amp import Amp
+import ase.io
 import numpy as np
 import sys
 
 arg=sys.argv
-
 configs = Trajectory(arg[1], 'r')
+#configs = read(arg[1], ":")
+#except:
+#  configs = ase.io.trajectory.convert(arg[1])
 
 calc = Amp.load('amp.amp')
 e_off_log = open('e_off_log.dat','w')

@@ -96,7 +96,8 @@ def main():
     output_angle = {}
     symbol_index={}
 #    chem_symbols = configs[0].get_chemical_symbols()
-    chem_symbols = ['H','Pd']
+    #chem_symbols = ['H','Pd']
+    chem_symbols = ['Au']
     for s_a in chem_symbols:
        for s_b in chem_symbols:
            key = [s_a,s_b]
@@ -141,6 +142,7 @@ def main():
     short_HPd = 0
     for config in configs:
         nimage += 1
+        print(nimage)
         for i in range(natom-1):
             for j in range(i+1,natom):
                 key = [config[i].symbol,config[j].symbol]
@@ -169,7 +171,7 @@ def main():
                             key=''.join([sides[0], config[j].symbol, sides[1]])
                             angle = config.get_angle(i, j, l)
                             if angle <30. and key=='PdPdPd':
-                               print key, nimage, i, j, l
+                               print(key, nimage, i, j, l)
                             for k in range (gr_angle_numb):
                                 if angle >= angle_min + float(k)*da and angle < angle_min + float((k+1))*da:
                                    angle_gr[key][k] += 1

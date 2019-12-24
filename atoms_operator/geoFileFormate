@@ -16,11 +16,12 @@ def main():
     fmt1 = arg[2]
     outputfile = arg[3]
     fmt2 = arg[4]
+    p1 = read(filename=inputfile, index=0, format = fmt1)
     if len(arg) > 5:
        cellsize = float(arg[5])
+       p1.set_cell([[cellsize,0,0],[0,cellsize,0],[0,0,cellsize]],scale_atoms=False)
     else:
        cellsize = 25.0
-    p1 = read(filename=inputfile, index=0, format = fmt1)
     if fmt1 == "xyz":
     #   p1.center()
        p1.set_cell([[cellsize,0,0],[0,cellsize,0],[0,0,cellsize]],scale_atoms=False)
@@ -32,7 +33,7 @@ def main():
     #p1.wrap()
 #    p1.set_positions(p1.get_positions()+20.)
     if fmt2 == "vasp":
-       #p1.center()
+       p1.center()
        write_vasp(filename = outputfile, atoms = p1, direct=False, vasp5=True)
     else:
        write(filename=outputfile, images=p1, format = fmt2)

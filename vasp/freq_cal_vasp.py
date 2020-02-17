@@ -25,7 +25,7 @@ class cd:
     """Context manager for changing the current working directory"""
     def __init__(self, newPath):
 
-        print newPath
+        print(newPath)
         self.newPath = os.path.expanduser(newPath)
 
     def __enter__(self):
@@ -58,18 +58,24 @@ def main():
     paras = readinputs(arg[1])
     #inp = open(paras['incar'], 'r')
     dirs = paras['directories'].split()
-    print dirs
+    print(dirs)
     fix_elements = paras['fix_elements']
+    try:
+      fix_indices = [int(field) for field in paras['fix_indices'].split()]
+    except:
+      fix_indices =None
+      pass
     #lines= inp.readlines()
-    output = open('energy.dat','w')
+    output = open('energy.dat','a')
     energy = None
     for dir in dirs:
        with cd(dir):
             proc = subprocess.Popen("grep 'reached required accuracy' OUTCAR", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
             vasp_check = proc.communicate()
-            if "stopping structural energy minimisation" not in vasp_check[0]:
+            print(vasp_check)
+            if b"stopping structural energy minimisation" not in vasp_check[0]:
                 energy = None
-                print dir,"is not done"
+                print(dir,"is not done")
             else:
                 proc_2 = subprocess.Popen("grep 'energy  without entropy' OUTCAR |tail -n 1", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
                 vasp_output = proc_2.communicate()
@@ -78,12 +84,16 @@ def main():
                 p1 = read('CONTCAR', index = 0, format='vasp')
                 
                 os.system('cp ../INCAR_freq INCAR')
-                c = FixAtoms(indices=[atom.index for atom in p1 if atom.symbol in fix_elements])
+                indices=[atom.index for atom in p1 if atom.symbol in fix_elements]
+                if fix_indices is not None:
+                   indices.extend(fix_indices)
+                print(indices)
+                c = FixAtoms(indices)
                 p1.set_constraint(c)
                 write('POSCAR', p1, format = 'vasp')
             if int(paras['submit']) == 1 and energy is not None:
                os.system(paras['job_submit_cmd']+' '+paras['job_submit_script'])
-               print os.getcwd(),'is submitted'
+               print(os.getcwd(),'is submitted')
        output.write("%20s    %s\n"%(dir, energy))
 if __name__ == '__main__':
     main()

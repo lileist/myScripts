@@ -1,0 +1,51 @@
+ SYSTEM = prod
+####################################################################
+#Startparameter
+ PREC      = Normal   medium, high low
+ ISTART =  0
+ ICHARG =  2
+ ISPIN     = 1          spin polarized calculation?
+ GGA       = RP
+#NELECT =       528.728290
+#Electronic Relaxation
+ ENCUT     = 400.0      cut-off energy (eV)
+ ISMEAR    = 0         0:Gaussian -1:Fermi -5:Tetrahedron method
+ SIGMA     = 0.02        broadening (eV)
+ NELM      = 100        maximum number of electronic SC steps
+# NELMIN    = 8          minimum number of electronic SC steps
+# NELMDL    = -8
+ EDIFF     = 1E-5       stopping-criterion for electronic SC-loop
+ IALGO     = 48         algorithm
+# ALGO     = F         algorithm
+# LDIAG     = T          sub-space diagonalisation
+ LREAL     = Auto       real-space projection
+#MAGMOM    = 40*0       magnetic moments
+#Mixing Parameters
+# AMIX      = 0.2
+# BMIX      = 0.0001
+# AMIX_MAG  = 0.8
+# BMIX_MAG  = 0.0001
+# MAXMIX    = -50
+# LMAXMIX   = 4
+#Writing Parameters
+ LWAVE     =  F          write WAVECAR
+ LCHARG    =  F           write CHGCAR
+ LVTOT     = F          write LOCPOT
+# LELF      = F          write ELFCAR
+# LORBIT    = 10
+####################################################################
+#Ionic relaxation
+ ISIF      = 2          stress and relaxation
+# ISYM      = 0          symmetry off
+ POTIM     = 0.015
+ EDIFFG    = -0.05      stopping-criterion for ionic relaxation loop
+ NSW       = 500        number of steps for ionic relaxation loop
+ IBRION    = 5          ionic relax: 0-MD 1-quasi-New 2-CG
+ NFREE    = 2         initial steepest desc
+####################################################################
+ LPLANE = .TRUE.
+ NPAR   = 2
+ LSCALU = .FALSE.
+ NSIM   = 12
+#DFT+U
+# IVDW = 11

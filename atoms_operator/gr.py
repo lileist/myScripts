@@ -115,7 +115,7 @@ def main():
 #           continue
 #        symbol_index[config.symbol].append(config.index)
             
-    dist_min = 0.0
+    dist_min = 1.5
     gr_numb = 400
     de = 0.02
     angle_min = 0.0

@@ -1,0 +1,13 @@
+    directories = CO_edge  CO_face CO_top COOH COOH_face COOH_edge H_edge_bridge  H_face_hollow  H_top_hollow H_face_bridge  H_top_bridge
+#    directories = CO_edge  CO_face 
+    fix_elements = Au Ag
+    format = vasp
+    stru_filename = CONTCAR
+    freq_filename = OUTCAR
+    geometry = linear
+    symmetrynumber = 1
+    temperature = 298.15
+    pressure = 101325
+    submit = 1
+    job_submit_script = qsub.hf
+    job_submit_cmd    = qsub

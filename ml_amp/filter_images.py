@@ -130,7 +130,7 @@ def main():
           print(i)
           test_traj = Trajectory(str(i)+'.traj','w')
           start = dn*i
-          if i == 6:
+          if i == 13:
              end=len(configs)
           else:
              end   = dn*(i+1)
@@ -151,7 +151,7 @@ def main():
           for j in range(i+1, len(configs)):
              e1 =configs[j][0].get_potential_energy()
              if abs(e1-e0) <= 0.05:
-                matched=match(configs[i][0], configs[j][0], 0.1, 3.3, indistinguishable=True)
+                matched=match(configs[i][0], configs[j][0], 0.02, 3.3, indistinguishable=True)
                 if matched:
                    break
           print(i, matched)

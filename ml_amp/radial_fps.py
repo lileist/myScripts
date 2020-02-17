@@ -95,10 +95,12 @@ gr = []
 Rij = 0
 dr = 0.02
 n_dot = int(Rc/dr)
-for i in range(n_dot):
-   gr.append(float(lines[i].split()[1]))
-   radium.append(Rij)
-   Rij += dr
+#for i in range(n_dot):
+for i in range(len(lines)):
+   fields = [float(field) for field in lines[i].split()]
+   gr.append(fields[1])
+   radium.append(fields[0])
+#   Rij += dr
 gr=np.array(gr)
 radium = np.array(radium)
 
@@ -125,8 +127,10 @@ for eta_rs in zip(etas, Rs):
     key = str(eta_rs[0])+'_'+str(eta_rs[1])
     keys.append(key)
     g2s[key] = []
-    for i in range(n_dot):
-       Rij += 0.02
+    #for i in range(n_dot):
+    for i in range(len(radium)):
+       #Rij += 0.02
+       Rij = radium[i]
        args_cutoff_fxn = dict(Rij=Rij)
        #if cutoff['name'] == 'Polynomial':
        #    args_cutoff_fxn['gamma'] = cutoff['kwargs']['gamma']

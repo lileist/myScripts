@@ -5,10 +5,10 @@ from ase.io import read
 #from ase.vibrations import Vibrations
 from ase.thermochemistry import IdealGasThermo
 import subprocess
-
+import sys
 """
-                      1          2               3          4   5   6
-thermochemistry.py [format] [pos_filename] [freq_filename] [E] [T] [P]
+                      1          2               3             4        5                6   7   8
+thermochemistry.py [format] [pos_filename] [freq_filename] [nonlinear] [symmetrynumber] [E] [T] [P]
 """
 
 def read_vibs(filename, format = 'vasp'):
@@ -17,10 +17,10 @@ def read_vibs(filename, format = 'vasp'):
        label = 'f  ='
     if format == 'gaussian':
        label = 'Frequencies --'
-    
-    proc = subprocess.Pope("grep "+label+' '+filename, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE) 
+    cmds = "grep "+"'"+label+"'"+' '+filename
+    proc = subprocess.Popen("grep "+"'"+label+"'"+' '+filename, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE) 
     output = proc.communicate()
-    for line in output[0]:
+    for line in output[0].strip().split('\n'):
       if format == 'vasp':
          vibs.append(float(line.split()[7]))
       if format == 'gaussian':
@@ -28,6 +28,7 @@ def read_vibs(filename, format = 'vasp'):
          vibs.append(float(fields[2]))
          vibs.append(float(fields[3]))
          vibs.append(float(fields[4]))
+    #print('vibs:', vibs)
     return numpy.array(vibs) 
        
    
@@ -41,16 +42,17 @@ if arg[1] == 'gaussian':
 if arg[1] == 'vasp':
    fmt = 'vasp'
 atoms = read(arg[2],index= 0,format=fmt)
-potentialenergy = float(arg[4])
+potentialenergy = float(arg[6])
 
+#print('arg3',arg[3])
 vibs = read_vibs(arg[3],arg[1])     #read vibs from file in array format
-print vibs
+#print(vibs)
 vib_energies = vibs / 8065.54429  # convert to eV from cm^-1
 #vib_energies = vib.get_energies()
 
 thermo = IdealGasThermo(vib_energies=vib_energies,
                         potentialenergy=potentialenergy,
                         atoms=atoms,
-                        geometry='nonlinear',
-                        symmetrynumber=2, spin=0)
-G = thermo.get_gibbs_energy(temperature=float(arg[5]), pressure=float(arg[6]))
+                        geometry=arg[4],
+                        symmetrynumber=int(arg[5]), spin=0)
+G = thermo.get_gibbs_energy(temperature=float(arg[7]), pressure=float(arg[8]))

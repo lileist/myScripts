@@ -133,6 +133,8 @@ e_range = [np.amin(es), np.amax(es)]
 fnorm_range = [np.amin(fnorms), np.amax(fnorms)]
 fmin_range = [np.amin(fmins), np.amax(fmins)]
 fmax_range = [np.amin(fmaxs), np.amax(fmaxs)]
+print(fmin_range)
+print(fmax_range)
 
 #normalization
 for config in configs:
